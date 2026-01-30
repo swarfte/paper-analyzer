@@ -16,12 +16,13 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from analyzer.views import custom_login, custom_logout, analyzer, generator
+from analyzer.views import custom_login, custom_logout, analyzer, generator, analyze_pdf
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('login/', custom_login, name='login'),
     path('logout/', custom_logout, name='logout'),
     path('analyzer/', analyzer, name='analyzer'),
+    path('analyzer/analyze/', analyze_pdf, name='analyze_pdf'),
     path('generator/', generator, name='generator'),
 ]

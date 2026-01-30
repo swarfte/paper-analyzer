@@ -5,7 +5,13 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_http_methods
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
 import json
+import logging
+
+from .services import analyze_paper
+
+logger = logging.getLogger(__name__)
 
 
 @login_required(login_url='/login/')
@@ -14,6 +20,51 @@ def analyzer(request):
     Paper analyzer page view - requires authentication.
     """
     return render(request, 'analyzer.html')
+
+
+@login_required(login_url='/login/')
+@require_POST
+def analyze_pdf(request):
+    """
+    Handle PDF analysis request.
+    """
+    if 'pdf_file' not in request.FILES:
+        return JsonResponse({
+            'success': False,
+            'error': 'No PDF file uploaded. Please select a file.'
+        }, status=400)
+
+    pdf_file = request.FILES['pdf_file']
+
+    # Validate file type
+    if not pdf_file.name.endswith('.pdf'):
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid file format. Please upload a PDF file.'
+        }, status=400)
+
+    # Validate file size (10MB max)
+    if pdf_file.size > 10 * 1024 * 1024:
+        return JsonResponse({
+            'success': False,
+            'error': 'File size exceeds 10MB limit.'
+        }, status=400)
+
+    try:
+        # Analyze the paper
+        analysis_result = analyze_paper(pdf_file)
+
+        return JsonResponse({
+            'success': True,
+            'analysis': analysis_result
+        })
+
+    except Exception as e:
+        logger.error(f"Paper analysis error: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
 
 
 @login_required(login_url='/login/')
