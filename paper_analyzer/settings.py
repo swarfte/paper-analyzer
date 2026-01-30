@@ -125,3 +125,9 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+
+# Authentication settings
+LOGIN_URL = '/login/'
+LOGIN_REDIRECT_URL = '/analyzer/'
+LOGOUT_REDIRECT_URL = '/login/'

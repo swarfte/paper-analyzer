@@ -1,1 +1,98 @@
 {% extends "base.html" %}
+
+{% block style %}
+    <style>
+        [x-cloak] {
+            display: none !important;
+        }
+        .sidebar-transition {
+            transition: all 0.3s ease-in-out;
+        }
+    </style>
+{% endblock style %}
+
+{% block content %}
+    <div class="min-h-screen bg-slate-50 dark:bg-slate-900"
+         x-data="{
+             currentPage: 'analyzer',
+             init() {
+                 const path = window.location.pathname;
+                 if (path === '/analyzer/' || path === '/') {
+                     this.currentPage = 'analyzer';
+                 } else if (path === '/generator/') {
+                     this.currentPage = 'generator';
+                 }
+             }
+         }">
+        <div class="flex h-screen overflow-hidden">
+            <!-- Sidebar -->
+            <aside class="sidebar-transition w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex flex-col">
+                <!-- Logo -->
+                <div class="flex items-center justify-center h-16 border-b border-slate-200 dark:border-slate-700">
+                    <div class="flex items-center">
+                        <div class="h-8 w-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                            <svg class="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                        </div>
+                        <span class="ml-2 text-lg font-bold text-slate-900 dark:text-white">Paper Analyzer</span>
+                    </div>
+                </div>
+
+                <!-- Navigation -->
+                <nav class="flex-1 overflow-y-auto py-4">
+                    <ul class="space-y-1 px-3">
+                        <!-- Paper Analyzer -->
+                        <li>
+                            <a href="/analyzer/"
+                               :class="['flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-150', currentPage === 'analyzer' ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700']">
+                                <svg class="h-5 w-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                                Paper Analyzer
+                            </a>
+                        </li>
+
+                        <!-- PPT Generation -->
+                        <li>
+                            <a href="/generator/"
+                               :class="['flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-150', currentPage === 'generator' ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700']">
+                                <svg class="h-5 w-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                                </svg>
+                                PPT Generation
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+
+                <!-- User Info -->
+                <div class="border-t border-slate-200 dark:border-slate-700 p-4">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-semibold">
+                                {{ user.username|first|upper }}
+                            </div>
+                        </div>
+                        <div class="ml-3 flex-1">
+                            <p class="text-sm font-medium text-slate-900 dark:text-white">{{ user.username }}</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">Logged in</p>
+                        </div>
+                        <a href="/logout/" class="ml-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Main Content -->
+            <main class="flex-1 overflow-y-auto">
+                {% block main_content %}
+                {% endblock main_content %}
+            </main>
+        </div>
+    </div>
+{% endblock content %}
+

@@ -1,1 +1,83 @@
 {% extends "layout.html" %}
+
+{% block title %}
+    Paper Analyzer - Paper Analyzer
+{% endblock title %}
+
+{% block main_content %}
+    <div class="p-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-slate-900 dark:text-white">Paper Analyzer</h1>
+            <p class="mt-2 text-slate-600 dark:text-slate-400">Upload and analyze your academic papers</p>
+        </div>
+
+        <!-- Upload Area -->
+        <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm border-2 border-dashed border-slate-300 dark:border-slate-600 p-12 text-center hover:border-blue-500 dark:hover:border-blue-400 transition-colors duration-150">
+            <svg class="mx-auto h-12 w-12 text-slate-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <p class="mt-4 text-sm text-slate-600 dark:text-slate-400">
+                <span class="font-medium text-blue-600 dark:text-blue-400">Upload a file</span>
+                or drag and drop
+            </p>
+            <p class="mt-1 text-xs text-slate-500 dark:text-slate-500">
+                PDF, DOC, DOCX up to 10MB
+            </p>
+            <button class="mt-6 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors duration-150">
+                Select File
+            </button>
+        </div>
+
+        <!-- Features Section -->
+        <div class="mt-8 grid gap-6 grid-cols-1 md:grid-cols-3">
+            <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-6">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <div class="flex items-center justify-center h-12 w-12 rounded-md bg-blue-500 text-white">
+                            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="ml-4">
+                        <h3 class="text-lg font-medium text-slate-900 dark:text-white">Text Extraction</h3>
+                        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Extract text from your papers automatically</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-6">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <div class="flex items-center justify-center h-12 w-12 rounded-md bg-indigo-500 text-white">
+                            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="ml-4">
+                        <h3 class="text-lg font-medium text-slate-900 dark:text-white">Content Analysis</h3>
+                        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Analyze and understand your paper content</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white dark:bg-slate-800 rounded-lg shadow-sm p-6">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <div class="flex items-center justify-center h-12 w-12 rounded-md bg-purple-500 text-white">
+                            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="ml-4">
+                        <h3 class="text-lg font-medium text-slate-900 dark:text-white">Export Results</h3>
+                        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Export analysis in various formats</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock main_content %}
