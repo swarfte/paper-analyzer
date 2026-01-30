@@ -18,14 +18,22 @@
       crossorigin="anonymous"
     ></script>
 
-    {% block style %} {% endblock style %} {% block extra_head %} 
+    {% block style %} 
+    {% endblock style %} 
+    
+    {% block extra_head %} 
     {% endblock extra_head %}
+
   </head>
   <body>
-    <div id="app">{% block content %} {% endblock content %}</div>
+    <div id="app">
+        {% block content %} 
+        {% endblock content %}
+    </div>
 
     {% block extra_body %} 
     {% endblock extra_body %} 
+    
     {% block script %} 
     {% endblock script %}
   </body>
