@@ -18,6 +18,8 @@ from django.contrib import admin
 from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
+from django.conf.urls.i18n import i18n_patterns
+import os
 from analyzer.views import (
     custom_login, custom_logout, analyzer, generator, analyze_pdf,
     analysis_history, analysis_detail, delete_analysis, analysis_list_api
@@ -36,6 +38,8 @@ urlpatterns = [
     path('api/history/', analysis_list_api, name='analysis_list_api'),
 ]
 
-# Serve media files in development
+# Serve media and static files in development
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    # Serve static files from the static directory in development
+    urlpatterns += static(settings.STATIC_URL, document_root=os.path.join(settings.BASE_DIR, 'static'))
