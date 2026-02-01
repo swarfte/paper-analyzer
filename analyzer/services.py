@@ -117,23 +117,30 @@ Summarize the main conclusion:
 
 
 ## RESPONSE FORMAT:
-Please provide your analysis in the following JSON format:
+Please provide your analysis in the following JSON format. **IMPORTANT: Use Markdown formatting within each JSON field:**
+
+- Use bullet points with `-` for lists
+- Use numbered lists with `1.` `2.` `3.` for sequential items
+- Use `**bold**` for key terms and emphasis
+- Use `###` for subsections within longer responses
+- Use proper spacing and line breaks for readability
 
 {{
     "abstract": "Brief summary of the abstract...",
-    "motivation": "Detailed explanation of motivation...",
-    "contribution": "List of key contributions...",
-    "what_does_paper_do": "Experiments, results, and findings...",
-    "how_does_paper_do": "Technical methodology and framework...",
-    "limitations_challenges": "Limitations and challenges...",
-    "future_work": "Suggested future work...",
+    "motivation": "Detailed explanation of motivation. Use bullet points for key issues...",
+    "contribution": "- List key contribution 1\\n- List key contribution 2\\n- List key contribution 3...",
+    "what_does_paper_do": "1. First experiment\\n2. Second experiment\\n3. Results summary...",
+    "how_does_paper_do": "Technical methodology. Use subsections: ### Main Idea\\n### Components\\n### Algorithm...",
+    "limitations_challenges": "- Limitation 1\\n- Limitation 2\\n- Constraint 1...",
+    "future_work": "1. Future direction 1\\n2. Future direction 2...",
     "conclusion": "Main conclusions and impact..."
 }}
 
 Ensure your analysis is:
 - Accurate and based only on the paper content
 - Specific and detailed, not vague
-- Well-structured and easy to understand
+- Well-structured with Markdown formatting
+- Use proper list formatting (bullet points or numbered lists)
 - Professional and scholarly in tone
 """
 
@@ -185,7 +192,7 @@ def _call_openrouter(prompt: str) -> Dict[str, Any]:
             messages=[
                 {
                     "role": "system",
-                    "content": "You are an expert research analyst specializing in academic paper analysis. You always respond with valid JSON."
+                    "content": "You are an expert research analyst specializing in academic paper analysis. You always respond with valid JSON. Format all text content using Markdown with proper bullet points, numbered lists, and bold text for emphasis."
                 },
                 {
                     "role": "user",
@@ -223,7 +230,7 @@ def _call_openrouter(prompt: str) -> Dict[str, Any]:
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are an expert research analyst specializing in academic paper analysis. IMPORTANT: You must respond ONLY with valid JSON, no additional text or explanation."
+                        "content": "You are an expert research analyst specializing in academic paper analysis. IMPORTANT: You must respond ONLY with valid JSON, no additional text or explanation. Format all text content using Markdown with proper bullet points, numbered lists, and bold text for emphasis."
                     },
                     {
                         "role": "user",

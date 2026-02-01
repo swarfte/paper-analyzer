@@ -4,6 +4,139 @@
     Paper Analyzer - Paper Analyzer
 {% endblock title %}
 
+{% block style %}
+<style>
+    /* Custom Markdown Styles */
+    .prose {
+        --tw-prose-body: theme('colors.slate.700');
+        --tw-prose-headings: theme('colors.slate.900');
+        --tw-prose-links: theme('colors.blue.600');
+        --tw-prose-bold: theme('colors.slate.900');
+        --tw-prose-code: theme('colors.pink.600');
+        --tw-prose-pre-code: theme('colors.slate.200');
+        --tw-prose-pre-bg: theme('colors.slate.800');
+        --tw-prose-quotes: theme('colors.slate.900');
+        --tw-prose-quote-borders: theme('colors.blue.200');
+        --tw-prose-hr: theme('colors.slate.200');
+        --tw-prose-counters: theme('colors.slate.500');
+    }
+
+    .dark .prose {
+        --tw-prose-body: theme('colors.slate.300');
+        --tw-prose-headings: theme('colors.white');
+        --tw-prose-links: theme('colors.blue.400');
+        --tw-prose-bold: theme('colors.white');
+        --tw-prose-code: theme('colors.pink.400');
+        --tw-prose-pre-code: theme('colors.slate.300');
+        --tw-prose-pre-bg: theme('colors.slate.800');
+        --tw-prose-quotes: theme('colors.slate.100');
+        --tw-prose-quote-borders: theme('colors.slate.700');
+        --tw-prose-hr: theme('colors.slate.700');
+        --tw-prose-counters: theme('colors.slate.400');
+    }
+
+    /* Enhanced list styling */
+    .prose ul {
+        list-style-type: disc;
+        padding-left: 1.5em;
+        margin-top: 0.5em;
+        margin-bottom: 0.5em;
+    }
+
+    .prose ul li {
+        margin-top: 0.25em;
+        margin-bottom: 0.25em;
+        padding-left: 0.25em;
+    }
+
+    .prose ul li::marker {
+        color: theme('colors.blue.500');
+    }
+
+    .dark .prose ul li::marker {
+        color: theme('colors.blue.400');
+    }
+
+    .prose ol {
+        list-style-type: decimal;
+        padding-left: 1.5em;
+        margin-top: 0.5em;
+        margin-bottom: 0.5em;
+    }
+
+    .prose ol li {
+        margin-top: 0.25em;
+        margin-bottom: 0.25em;
+        padding-left: 0.25em;
+    }
+
+    .prose ol li::marker {
+        color: theme('colors.blue.500');
+        font-weight: 600;
+    }
+
+    .dark .prose ol li::marker {
+        color: theme('colors.blue.400');
+    }
+
+    /* Nested lists */
+    .prose ul ul, .prose ol ul {
+        list-style-type: circle;
+        margin-top: 0.25em;
+        margin-bottom: 0.25em;
+    }
+
+    .prose ul ul ul, .prose ol ul ul {
+        list-style-type: square;
+    }
+
+    /* Numbered lists styling */
+    .prose ol ol {
+        list-style-type: lower-alpha;
+    }
+
+    .prose ol ol ol {
+        list-style-type: lower-roman;
+    }
+
+    /* Handle various list formats */
+    .prose li p {
+        margin-top: 0.25em;
+        margin-bottom: 0.25em;
+    }
+
+    /* Headings styling */
+    .prose h3 {
+        font-size: 1.125em;
+        font-weight: 600;
+        margin-top: 1em;
+        margin-bottom: 0.5em;
+        color: theme('colors.slate.800');
+    }
+
+    .dark .prose h3 {
+        color: theme('colors.slate.100');
+    }
+
+    /* Paragraph spacing */
+    .prose p {
+        margin-top: 0.5em;
+        margin-bottom: 0.5em;
+        line-height: 1.75;
+    }
+
+    /* Strong/Bold text */
+    .prose strong {
+        color: theme('colors.slate.900');
+        font-weight: 600;
+    }
+
+    .dark .prose strong {
+        color: theme('colors.white');
+    }
+</style>
+{% endblock style %}
+
 {% block main_content %}
     <div class="p-8"
          x-data="{
@@ -125,8 +258,28 @@
 
              truncateText(text, maxLength = 150) {
                  if (!text) return '';
-                 if (text.length <= maxLength) return text;
-                 return text.substring(0, maxLength) + '...';
+                 // Strip markdown for preview
+                 const plainText = text
+                     .replace(/#{1,6}\s/g, '')
+                     .replace(/\*\*/g, '')
+                     .replace(/\*/g, '')
+                     .replace(/-/g, '')
+                     .replace(/\n+/g, ' ')
+                     .trim();
+                 if (plainText.length <= maxLength) return plainText;
+                 return plainText.substring(0, maxLength) + '...';
+             },
+
+             renderMarkdown(text) {
+                 if (!text) return '';
+                 if (typeof marked !== 'undefined') {
+                     return marked.parse(text);
+                 }
+                 return text;
+             },
+
+             get renderedDetail() {
+                 return this.renderMarkdown(this.currentDetail);
              },
 
              openDetailModal(title, content, color) {
@@ -665,8 +818,8 @@
                     </div>
 
                     <!-- Modal Body -->
-                    <div class="flex-1 overflow-auto p-6">
-                        <p class="text-base text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed" x-text="currentDetail"></p>
+                    <div class="flex-1 overflow-auto p-6 prose prose-sm dark:prose-invert max-w-none">
+                        <div x-html="renderMarkdown(currentDetail)"></div>
                     </div>
 
                     <!-- Modal Footer -->
