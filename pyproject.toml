@@ -1,0 +1,12 @@
+[project]
+name = "paper-analyzer"
+version = "0.1.0"
+description = "AI-powered research paper analyzer using OpenRouter"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "django>=6.0.1",
+    "python-dotenv>=0.9.9",
+    "PyPDF2>=3.0.0",
+    "openai>=1.0.0",
+]

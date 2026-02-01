@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block style %}
+    <style>
+        [x-cloak] {
+            display: none !important;
+        }
+        .sidebar-transition {
+            transition: all 0.3s ease-in-out;
+        }
+        /* Fix SVG icon colors */
+        nav a svg {
+            flex-shrink: 0;
+            stroke: currentColor;
+        }
+        nav a.text-slate-700 svg {
+            stroke: #334155;
+        }
+        nav a.text-blue-700 svg {
+            stroke: #1d4ed8;
+        }
+        nav a.dark\\:text-slate-300 svg {
+            stroke: #cbd5e1;
+        }
+        nav a.dark\\:text-blue-300 svg {
+            stroke: #93c5fd;
+        }
+        /* Logo icon color */
+        .logo-icon svg {
+            stroke: white;
+        }
+        /* Logout icon */
+        .logout-icon svg {
+            stroke: currentColor;
+        }
+        .text-slate-400 .logout-icon svg {
+            stroke: #94a3b8;
+        }
+        .hover\\:text-slate-600:hover .logout-icon svg {
+            stroke: #475569;
+        }
+        .dark\\:hover\\:text-slate-300:hover .logout-icon svg {
+            stroke: #cbd5e1;
+        }
+    </style>
+{% endblock style %}
+
+{% block content %}
+    <div class="min-h-screen bg-slate-50 dark:bg-slate-900"
+         x-data="{
+             currentPage: 'analyzer',
+             init() {
+                 const path = window.location.pathname;
+                 if (path === '/analyzer/' || path === '/') {
+                     this.currentPage = 'analyzer';
+                 } else if (path === '/generator/') {
+                     this.currentPage = 'generator';
+                 }
+             }
+         }">
+        <div class="flex h-screen overflow-hidden">
+            <!-- Sidebar -->
+            <aside class="sidebar-transition w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex flex-col">
+                <!-- Logo -->
+                <div class="flex items-center justify-center h-16 border-b border-slate-200 dark:border-slate-700">
+                    <div class="flex items-center">
+                        <div class="h-8 w-8 mr-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+                              <defs>
+                                <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                  <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+                                  <stop offset="100%" style="stop-color:#6366f1;stop-opacity:1" />
+                                </linearGradient>
+                              </defs>
+                              <rect width="32" height="32" rx="6" fill="url(#grad)"/>
+                              <path d="M9 8h14a2 2 0 012 2v12a2 2 0 01-2 2H9a2 2 0 01-2-2V10a2 2 0 012-2z" fill="white" opacity="0.9"/>
+                              <path d="M11 12h10M11 15h10M11 18h6" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <span class="ml-2 text-lg font-bold text-slate-900 dark:text-white">Paper Analyzer</span>
+                    </div>
+                </div>
+
+                <!-- Navigation -->
+                <nav class="flex-1 overflow-y-auto py-4">
+                    <ul class="space-y-1 px-3">
+                        <!-- Paper Analyzer -->
+                        <li>
+                            <a href="/analyzer/"
+                               :class="['flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-150', currentPage === 'analyzer' ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-slate-100 dark:hover:bg-slate-700']"
+                               style="color: #334155;"
+                               @mouseover="$el.style.color = '#1d4ed8'"
+                               @mouseleave="$el.style.color = '#334155'">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="mr-3" xmlns="http://www.w3.org/2000/svg" style="flex-shrink: 0; display: block;">
+                                    <path d="M9 12H15M9 16H15M17 21H7C5.89543 21 5 20.1046 5 19V5C5 3.89543 5.89543 3 7 3H12.586C12.8512 3 13.1055 3.10536 13.2929 3.29289L18.7071 8.70711C18.8946 8.89464 19 9.14898 19 9.41421V19C19 20.1046 18.1046 21 17 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <span>Paper Analyzer</span>
+                            </a>
+                        </li>
+
+                        <!-- PPT Generation -->
+                        <li>
+                            <a href="/generator/"
+                               :class="['flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-150', currentPage === 'generator' ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-slate-100 dark:hover:bg-slate-700']"
+                               style="color: #334155;"
+                               @mouseover="$el.style.color = '#1d4ed8'"
+                               @mouseleave="$el.style.color = '#334155'">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="mr-3" xmlns="http://www.w3.org/2000/svg" style="flex-shrink: 0; display: block;">
+                                    <path d="M7 21H17C18.1046 21 19 20.1046 19 19V9.41421C19 9.14898 18.8946 8.89464 18.7071 8.70711L13.2929 3.29289C13.1055 3.10536 12.8512 3 12.586 3H7C5.89543 3 5 3.89543 5 5V19C5 20.1046 5.89543 21 7 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                <span>PPT Generation</span>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+
+                <!-- User Info -->
+                <div class="border-t border-slate-200 dark:border-slate-700 p-4">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="h-12 w-12 rounded-full bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-lg ring-2 ring-white dark:ring-slate-700 shadow-lg">
+                                <span>{{ user.username|first|upper }}</span>
+                            </div>
+                        </div>
+                        <div class="ml-3 flex-1">
+                            <p class="text-sm font-semibold text-slate-900 dark:text-white">{{ user.username }}</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">Logged in</p>
+                        </div>
+                        <a href="/logout/" class="ml-2 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors flex items-center justify-center" title="Logout">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display: block;">
+                                <path d="M17 16L21 12M21 12L17 8M21 12H7M13 3V4C13 5.65685 11.6569 7 10 7H6C4.89543 7 4 7.89543 4 9V19C4 20.1046 4.89543 21 6 21H10C11.6569 21 13 19.6569 13 18V19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Main Content -->
+            <main class="flex-1 overflow-y-auto">
+                {% block main_content %}
+                {% endblock main_content %}
+            </main>
+        </div>
+    </div>
+{% endblock content %}
+
