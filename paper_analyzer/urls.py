@@ -16,7 +16,12 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from analyzer.views import custom_login, custom_logout, analyzer, generator, analyze_pdf
+from django.conf import settings
+from django.conf.urls.static import static
+from analyzer.views import (
+    custom_login, custom_logout, analyzer, generator, analyze_pdf,
+    analysis_history, analysis_detail, delete_analysis, analysis_list_api
+)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -25,4 +30,12 @@ urlpatterns = [
     path('analyzer/', analyzer, name='analyzer'),
     path('analyzer/analyze/', analyze_pdf, name='analyze_pdf'),
     path('generator/', generator, name='generator'),
+    path('history/', analysis_history, name='analysis_history'),
+    path('history/<int:analysis_id>/', analysis_detail, name='analysis_detail'),
+    path('history/<int:analysis_id>/delete/', delete_analysis, name='delete_analysis'),
+    path('api/history/', analysis_list_api, name='analysis_list_api'),
 ]
+
+# Serve media files in development
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
