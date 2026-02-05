@@ -52,6 +52,11 @@ def print_info(text: str):
     print(f"{Colors.OKCYAN}ℹ{Colors.ENDC} {text}")
 
 
+def is_docker() -> bool:
+    """Check if running in Docker environment."""
+    return os.getenv('DOCKER_ENV') == 'true' or os.path.exists('/.dockerenv')
+
+
 def check_env_file() -> bool:
     """Check if .env file exists, create from .env.example if not."""
     print_header("Step 1: Environment Configuration")
@@ -74,6 +79,11 @@ def check_env_file() -> bool:
     try:
         shutil.copy(env_example_path, env_path)
         print_success("Created .env file from .env.example")
+
+        if is_docker():
+            print_info("Running in Docker mode - skipping .env configuration prompt")
+            return True
+
         print_warning("\nIMPORTANT: Please update the following values in .env:")
         print("  - DJANGO_SECRET_KEY (required)")
         print("  - OPENROUTER_API_KEY (for paper analysis)")
@@ -187,6 +197,9 @@ def create_superuser() -> bool:
         # Check if user already exists
         if User.objects.filter(username=username).exists():
             print_warning(f"User '{username}' already exists")
+            if is_docker():
+                print_info("Running in Docker mode - skipping password reset prompt")
+                return True
             response = input("Do you want to reset the password? (y/n): ").strip().lower()
             if response == 'y':
                 user = User.objects.get(username=username)
