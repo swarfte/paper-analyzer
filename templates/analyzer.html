@@ -157,6 +157,7 @@
              historyPage: 1,
              historyHasMore: false,
              historyLoading: false,
+             maxPdfSizeMb: {{ max_pdf_size_mb }},
 
              getCsrfToken() {
                  const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
@@ -187,8 +188,9 @@
                      this.errorMessage = 'Please upload a PDF file.';
                      return;
                  }
-                 if (file.size > 10 * 1024 * 1024) {
-                     this.errorMessage = 'File size must be less than 10MB.';
+                 const maxSize = this.maxPdfSizeMb * 1024 * 1024;
+                 if (file.size > maxSize) {
+                     this.errorMessage = `File size must be less than ${this.maxPdfSizeMb}MB.`;
                      return;
                  }
                  this.file = file;
@@ -447,7 +449,7 @@
                         or drag and drop
                     </p>
                     <p class="mt-2 text-sm text-slate-500 dark:text-slate-500">
-                        PDF up to 10MB
+                        PDF up to {{ max_pdf_size_mb }}MB
                     </p>
                     <label class="mt-8 inline-block cursor-pointer px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
                         Select File

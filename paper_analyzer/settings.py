@@ -138,3 +138,8 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/analyzer/'
 LOGOUT_REDIRECT_URL = '/login/'
+
+
+# Paper Analysis Settings
+MAX_PDF_SIZE_MB = int(os.getenv('MAX_PDF_SIZE_MB', '10'))  # Default to 10MB if not set
+MAX_TEXT_LENGTH = int(os.getenv('MAX_TEXT_LENGTH', '25000'))  # Default to 25000 if not set

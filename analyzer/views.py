@@ -8,6 +8,7 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from django.core.paginator import Paginator
 from django.db import models
+from django.conf import settings
 import json
 import logging
 import os
@@ -24,7 +25,10 @@ def analyzer(request):
     """
     Paper analyzer page view - requires authentication.
     """
-    return render(request, 'analyzer.html')
+    context = {
+        'max_pdf_size_mb': settings.MAX_PDF_SIZE_MB,
+    }
+    return render(request, 'analyzer.html', context)
 
 
 @login_required(login_url='/login/')
@@ -48,11 +52,12 @@ def analyze_pdf(request):
             'error': 'Invalid file format. Please upload a PDF file.'
         }, status=400)
 
-    # Validate file size (10MB max)
-    if pdf_file.size > 10 * 1024 * 1024:
+    # Validate file size using settings
+    max_size_bytes = settings.MAX_PDF_SIZE_MB * 1024 * 1024
+    if pdf_file.size > max_size_bytes:
         return JsonResponse({
             'success': False,
-            'error': 'File size exceeds 10MB limit.'
+            'error': f'File size exceeds {settings.MAX_PDF_SIZE_MB}MB limit.'
         }, status=400)
 
     try:
