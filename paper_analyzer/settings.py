@@ -57,6 +57,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'analyzer.middleware.RedirectToAnalyzerMiddleware',
 ]
 
 ROOT_URLCONF = 'paper_analyzer.urls'

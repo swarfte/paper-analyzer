@@ -19,6 +19,7 @@ from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
 from django.conf.urls.i18n import i18n_patterns
+from django.views.generic import RedirectView
 import os
 from analyzer.views import (
     custom_login, custom_logout, analyzer, generator, analyze_pdf,
@@ -27,6 +28,7 @@ from analyzer.views import (
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('', RedirectView.as_view(url='/analyzer/', permanent=False), name='root_redirect'),
     path('login/', custom_login, name='login'),
     path('logout/', custom_logout, name='logout'),
     path('analyzer/', analyzer, name='analyzer'),
