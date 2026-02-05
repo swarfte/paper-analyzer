@@ -933,8 +933,10 @@
                     </div>
 
                     <!-- Modal Body -->
-                    <div class="flex-1 overflow-auto p-6 prose prose-sm dark:prose-invert max-w-none">
-                        <div x-html="renderMarkdown(currentDetail)"></div>
+                    <div class="flex-1 overflow-y-auto">
+                        <div class="p-6 prose prose-sm dark:prose-invert max-w-none">
+                            <div x-html="renderMarkdown(currentDetail)"></div>
+                        </div>
                     </div>
 
                     <!-- Modal Footer -->

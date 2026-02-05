@@ -381,7 +381,9 @@
                     </button>
                 </div>
                 <!-- Modal Body -->
-                <div class="flex-1 overflow-y-auto px-6 py-4 prose dark:prose-invert" x-html="renderedDetail"></div>
+                <div class="flex-1 overflow-y-auto">
+                    <div class="px-6 py-4 prose dark:prose-invert max-w-none" x-html="renderedDetail"></div>
+                </div>
                 <!-- Modal Footer -->
                 <div class="flex-shrink-0 px-6 py-4 border-t border-slate-200 dark:border-slate-700">
                     <button @click="closeDetailModal()"
