@@ -381,7 +381,7 @@ def export_analysis_pdf(request, analysis_id):
         )
 
         def parse_markdown_to_flowables(text, body_style, code_style):
-            """Parse markdown text and convert to ReportLab flowables."""
+            """Parse markdown text and convert to ReportLab flowables with proper nested list support."""
             if not text:
                 return []
 
@@ -390,15 +390,17 @@ def export_analysis_pdf(request, analysis_id):
             i = 0
 
             while i < len(lines):
-                line = lines[i].strip()
+                line = lines[i]
 
-                # Empty line - add spacer
-                if not line:
+                # Empty line - skip
+                if not line.strip():
                     i += 1
                     continue
 
+                stripped = line.strip()
+
                 # Code block (``` or ~~~)
-                if line.startswith('```') or line.startswith('~~~'):
+                if stripped.startswith('```') or stripped.startswith('~~~'):
                     i += 1
                     code_lines = []
                     while i < len(lines) and not lines[i].strip().startswith('```') and not lines[i].strip().startswith('~~~'):
@@ -409,42 +411,90 @@ def export_analysis_pdf(request, analysis_id):
                     i += 1
                     continue
 
-                # Bullet list item
-                if line.startswith('- ') or line.startswith('* '):
-                    bullet_items = []
-                    while i < len(lines):
-                        curr_line = lines[i].strip()
-                        if not curr_line.startswith('- ') and not curr_line.startswith('* '):
-                            break
-                        # Remove bullet marker and convert to HTML
-                        item_text = curr_line[2:].strip()
-                        item_text = markdown_to_html_inline(item_text)
-                        bullet_items.append(ListItem(Paragraph(item_text, body_style)))
-                        i += 1
-                    if bullet_items:
-                        flowables.append(ListFlowable(bullet_items, bulletType='bullet', leftIndent=20, spaceBefore=6, spaceAfter=6))
-                    continue
+                # Check if this is a list item (bullet or numbered)
+                is_bullet = stripped.startswith('- ') or stripped.startswith('* ')
+                is_numbered = re.match(r'^(\d+)\.\s+(.*)$', stripped)
 
-                # Numbered list item
-                numbered_match = re.match(r'^(\d+)\.\s+(.*)$', line)
-                if numbered_match:
-                    num = numbered_match.group(1)
-                    item_text = numbered_match.group(2).strip()
-                    item_text = markdown_to_html_inline(item_text)
-                    flowables.append(Paragraph(f'{num}. {item_text}', body_style))
+                if is_bullet or is_numbered:
+                    # Process this list item and any nested items following it
+                    # Keep the original marker and add nested items immediately after
+
+                    # Get the base indentation (for this item)
+                    base_indent = len(line) - len(line.lstrip())
+
+                    # Add the current list item
+                    item_content = stripped
+                    if is_bullet:
+                        # Remove bullet marker
+                        item_content = stripped[2:].strip()
+                        item_content = markdown_to_html_inline(item_content)
+                        # Add bullet point
+                        flowables.append(Paragraph(f'• {item_content}', body_style))
+                    else:
+                        # Keep the number
+                        item_content = markdown_to_html_inline(stripped)
+                        flowables.append(Paragraph(item_content, body_style))
+
                     i += 1
+
+                    # Now look for nested items (indented more than base)
+                    while i < len(lines):
+                        next_line = lines[i]
+                        if not next_line.strip():
+                            # Empty line ends the list
+                            break
+
+                        next_indent = len(next_line) - len(next_line.lstrip())
+                        next_stripped = next_line.strip()
+
+                        # Check if next item is nested (more indented) and is a list item
+                        if next_indent > base_indent:
+                            next_is_bullet = next_stripped.startswith('- ') or next_stripped.startswith('* ')
+                            next_is_numbered = re.match(r'^(\d+)\.\s+(.*)$', next_stripped)
+
+                            if next_is_bullet or next_is_numbered:
+                                # This is a nested item - add it with proper indentation
+                                nested_indent = 20 + next_indent
+                                nested_style = ParagraphStyle(
+                                    f'Nested{nested_indent}',
+                                    parent=body_style,
+                                    leftIndent=nested_indent,
+                                    spaceBefore=3,
+                                    spaceAfter=3
+                                )
+
+                                if next_is_bullet:
+                                    nested_content = next_stripped[2:].strip()
+                                    nested_content = markdown_to_html_inline(nested_content)
+                                    flowables.append(Paragraph(f'• {nested_content}', nested_style))
+                                else:
+                                    nested_content = markdown_to_html_inline(next_stripped)
+                                    flowables.append(Paragraph(nested_content, nested_style))
+
+                                i += 1
+                            else:
+                                # Not a list item, end of nested section
+                                break
+                        else:
+                            # Not indented more, end of this item's nested section
+                            # But it might be another top-level list item, so continue to next iteration
+                            # Don't increment i, let the outer loop handle it
+                            break
+
+                    # Add spacing after the entire list group
+                    flowables.append(Spacer(1, 0.1 * inch))
                     continue
 
                 # Header
-                if line.startswith('###'):
-                    header_text = line[3:].strip()
+                if stripped.startswith('###'):
+                    header_text = stripped[3:].strip()
                     header_text = markdown_to_html_inline(header_text)
                     flowables.append(Paragraph(f'<b>{header_text}</b>', body_style))
                     flowables.append(Spacer(1, 0.1 * inch))
                     i += 1
                     continue
-                elif line.startswith('##'):
-                    header_text = line[2:].strip()
+                elif stripped.startswith('##'):
+                    header_text = stripped[2:].strip()
                     header_text = markdown_to_html_inline(header_text)
                     flowables.append(Paragraph(f'<b>{header_text}</b>', body_style))
                     flowables.append(Spacer(1, 0.1 * inch))
@@ -454,12 +504,18 @@ def export_analysis_pdf(request, analysis_id):
                 # Regular paragraph - might span multiple lines
                 para_lines = []
                 while i < len(lines):
-                    curr_line = lines[i].strip()
-                    # Stop at empty line or list/header
-                    if not curr_line or curr_line.startswith('- ') or curr_line.startswith('* ') or \
-                       curr_line.startswith('#') or curr_line.startswith('```') or curr_line.startswith('~~~'):
+                    curr_line = lines[i]
+                    curr_stripped = curr_line.strip()
+                    # Stop at empty line or list/header/code
+                    if not curr_stripped:
                         break
-                    para_lines.append(curr_line)
+                    if curr_stripped.startswith('- ') or curr_stripped.startswith('* '):
+                        break
+                    if re.match(r'^\d+\.\s+', curr_stripped):
+                        break
+                    if curr_stripped.startswith('#') or curr_stripped.startswith('```') or curr_stripped.startswith('~~~'):
+                        break
+                    para_lines.append(curr_stripped)
                     i += 1
 
                 if para_lines:
