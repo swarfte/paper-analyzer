@@ -211,3 +211,6 @@ __marimo__/
 
 # IDE config
 .idea/
+
+# MacOS file
+.DS_Store

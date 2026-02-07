@@ -9,4 +9,6 @@ dependencies = [
     "python-dotenv>=0.9.9",
     "PyPDF2>=3.0.0",
     "openai>=1.0.0",
+    "reportlab>=4.0.0",
+    "markdown>=3.7",
 ]

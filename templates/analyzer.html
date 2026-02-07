@@ -4,6 +4,14 @@
     Paper Analyzer - Paper Analyzer
 {% endblock title %}
 
+{% block extra_head %}
+<!-- PDF.js for text extraction -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+</script>
+{% endblock extra_head %}
+
 {% block style %}
 <style>
     /* Custom Markdown Styles */
@@ -19,20 +27,6 @@
         --tw-prose-quote-borders: theme('colors.blue.200');
         --tw-prose-hr: theme('colors.slate.200');
         --tw-prose-counters: theme('colors.slate.500');
-    }
-
-    .dark .prose {
-        --tw-prose-body: theme('colors.slate.300');
-        --tw-prose-headings: theme('colors.white');
-        --tw-prose-links: theme('colors.blue.400');
-        --tw-prose-bold: theme('colors.white');
-        --tw-prose-code: theme('colors.pink.400');
-        --tw-prose-pre-code: theme('colors.slate.300');
-        --tw-prose-pre-bg: theme('colors.slate.800');
-        --tw-prose-quotes: theme('colors.slate.100');
-        --tw-prose-quote-borders: theme('colors.slate.700');
-        --tw-prose-hr: theme('colors.slate.700');
-        --tw-prose-counters: theme('colors.slate.400');
     }
 
     /* Enhanced list styling */
@@ -53,10 +47,6 @@
         color: theme('colors.blue.500');
     }
 
-    .dark .prose ul li::marker {
-        color: theme('colors.blue.400');
-    }
-
     .prose ol {
         list-style-type: decimal;
         padding-left: 1.5em;
@@ -73,10 +63,6 @@
     .prose ol li::marker {
         color: theme('colors.blue.500');
         font-weight: 600;
-    }
-
-    .dark .prose ol li::marker {
-        color: theme('colors.blue.400');
     }
 
     /* Nested lists */
@@ -114,10 +100,6 @@
         color: theme('colors.slate.800');
     }
 
-    .dark .prose h3 {
-        color: theme('colors.slate.100');
-    }
-
     /* Paragraph spacing */
     .prose p {
         margin-top: 0.5em;
@@ -131,8 +113,22 @@
         font-weight: 600;
     }
 
-    .dark .prose strong {
-        color: theme('colors.white');
+    /* Line clamp for card previews */
+    .line-clamp-6 {
+        display: -webkit-box;
+        -webkit-line-clamp: 6;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    /* Shimmer animation for progress bar */
+    @keyframes shimmer {
+        0% {
+            transform: translateX(-100%);
+        }
+        100% {
+            transform: translateX(100%);
+        }
     }
 </style>
 {% endblock style %}
@@ -157,10 +153,66 @@
              historyPage: 1,
              historyHasMore: false,
              historyLoading: false,
+             maxPdfSizeMb: {{ max_pdf_size_mb }},
+             copySuccess: '',
+             copyTimeout: null,
+             progress: 0,
+             estimatedTime: 0,
+             progressInterval: null,
+             wordCount: 0,
+             isCountingWords: false,
+             analysisId: null,
 
              getCsrfToken() {
                  const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
                  return csrfToken ? csrfToken.value : '';
+             },
+
+             calculateEstimatedTime() {
+                 if (!this.wordCount || this.wordCount === 0) return 0;
+                 // Based on experiment: 21488 words take 25 seconds
+                 // So approximately 1 second per 1000 words
+                 const secondsPer1000Words = 1;
+                 const minTime = 20;
+                 const estimatedSeconds = Math.ceil(this.wordCount / 1000 * secondsPer1000Words);
+                 return Math.max(minTime, estimatedSeconds);
+             },
+
+             startProgressAnimation() {
+                 this.progress = 0;
+                 this.estimatedTime = this.calculateEstimatedTime();
+                 const intervalTime = 100;
+                 const increment = 100 / ((this.estimatedTime * 1000) / intervalTime);
+
+                 this.progressInterval = setInterval(() => {
+                     if (this.progress < 95) {
+                         this.progress = Math.min(95, this.progress + increment);
+                     }
+                 }, intervalTime);
+             },
+
+             stopProgressAnimation() {
+                 if (this.progressInterval) {
+                     clearInterval(this.progressInterval);
+                     this.progressInterval = null;
+                 }
+                 this.progress = 100;
+             },
+
+             async copyToClipboard(text, label = 'Content') {
+                 try {
+                     await navigator.clipboard.writeText(text);
+                     this.copySuccess = `${label} copied!`;
+                     if (this.copyTimeout) {
+                         clearTimeout(this.copyTimeout);
+                     }
+                     this.copyTimeout = setTimeout(() => {
+                         this.copySuccess = '';
+                     }, 2000);
+                 } catch (err) {
+                     console.error('Failed to copy:', err);
+                     this.copySuccess = 'Failed to copy';
+                 }
              },
 
              handleDragOver(e) {
@@ -182,22 +234,54 @@
                  }
              },
 
-             selectFile(file) {
+             async countWordsInPDF(file) {
+                 this.isCountingWords = true;
+                 this.wordCount = 0;
+
+                 try {
+                     const arrayBuffer = await file.arrayBuffer();
+                     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                     let fullText = '';
+
+                     // Extract text from all pages
+                     for (let i = 1; i <= pdf.numPages; i++) {
+                         const page = await pdf.getPage(i);
+                         const textContent = await page.getTextContent();
+                         const pageText = textContent.items.map(item => item.str).join(' ');
+                         fullText += pageText + ' ';
+                     }
+
+                     // Count words (similar to MS Word count)
+                     // Split by whitespace and filter out empty strings
+                     const words = fullText.split(/\s+/).filter(word => word.length > 0);
+                     this.wordCount = words.length;
+
+                 } catch (error) {
+                     console.error('Error counting words in PDF:', error);
+                     this.wordCount = 0;
+                 } finally {
+                     this.isCountingWords = false;
+                 }
+             },
+
+             async selectFile(file) {
                  if (file.type !== 'application/pdf') {
                      this.errorMessage = 'Please upload a PDF file.';
                      return;
                  }
-                 if (file.size > 10 * 1024 * 1024) {
-                     this.errorMessage = 'File size must be less than 10MB.';
+                 const maxSize = this.maxPdfSizeMb * 1024 * 1024;
+                 if (file.size > maxSize) {
+                     this.errorMessage = `File size must be less than ${this.maxPdfSizeMb}MB.`;
                      return;
                  }
                  this.file = file;
                  this.errorMessage = '';
                  this.pdfPreviewUrl = URL.createObjectURL(file);
                  this.showPreview = false;
-                 // Reset analysis when new file is selected
                  this.analysisResult = null;
                  this.hasAnalyzed = false;
+                 // Count words in the PDF
+                 await this.countWordsInPDF(file);
              },
 
              removeFile() {
@@ -209,6 +293,7 @@
                  }
                  this.analysisResult = null;
                  this.hasAnalyzed = false;
+                 this.wordCount = 0;
              },
 
              async analyzePaper() {
@@ -220,6 +305,10 @@
                  this.isAnalyzing = true;
                  this.analysisResult = null;
                  this.errorMessage = '';
+                 this.progress = 0;
+
+                 // Start progress animation
+                 this.startProgressAnimation();
 
                  const formData = new FormData();
                  formData.append('csrfmiddlewaretoken', this.getCsrfToken());
@@ -238,12 +327,16 @@
                      const data = await response.json();
 
                      if (data.success) {
+                         this.stopProgressAnimation();
                          this.analysisResult = data.analysis;
-                         this.hasAnalyzed = true;
+                        this.analysisId = data.analysis_id;
+                        this.hasAnalyzed = true;
                      } else {
+                         this.stopProgressAnimation();
                          this.errorMessage = data.error || 'Analysis failed. Please try again.';
                      }
                  } catch (error) {
+                     this.stopProgressAnimation();
                      this.errorMessage = 'An error occurred. Please try again later.';
                      console.error('Analysis error:', error);
                  } finally {
@@ -253,7 +346,10 @@
 
              resetAnalysis() {
                  this.analysisResult = null;
+                 this.analysisId = null;
                  this.hasAnalyzed = false;
+                 this.progress = 0;
+                 this.stopProgressAnimation();
                  this.file = null;
                  if (this.pdfPreviewUrl) {
                      URL.revokeObjectURL(this.pdfPreviewUrl);
@@ -263,7 +359,6 @@
 
              truncateText(text, maxLength = 150) {
                  if (!text) return '';
-                 // Strip markdown for preview
                  const plainText = text
                      .replace(/#{1,6}\s/g, '')
                      .replace(/\*\*/g, '')
@@ -377,7 +472,6 @@
                      const data = await response.json();
 
                      if (data.success) {
-                         // Remove from local data
                          this.historyData = this.historyData.filter(a => a.id !== analysisId);
                      } else {
                          alert('Failed to delete analysis: ' + data.error);
@@ -402,38 +496,50 @@
          }">
         {% csrf_token %}
 
+        <!-- Copy Success Notification -->
+        <div x-show="copySuccess"
+             x-transition
+             x-cloak
+             class="fixed top-4 right-4 z-50 px-4 py-2 bg-green-600 text-white rounded-lg shadow-lg flex items-center gap-2"
+             style="display: none;">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            <span x-text="copySuccess"></span>
+        </div>
+
         <!-- Initial State: Centered Upload -->
-        <div x-show="!hasAnalyzed" class="max-w-2xl mx-auto">
+        <div x-show="!hasAnalyzed && !isAnalyzing" class="max-w-2xl mx-auto">
             <!-- Header -->
             <div class="mb-8 flex items-center justify-between">
                 <div class="flex-1">
-                    <h1 class="text-4xl font-bold text-slate-900 dark:text-white mb-3">Paper Analyzer</h1>
-                    <p class="text-lg text-slate-600 dark:text-slate-400">Upload and analyze your research papers with AI</p>
+                    <h1 class="text-4xl font-bold text-slate-900 mb-3">Paper Analyzer</h1>
+                    <p class="text-lg text-slate-600">Upload and analyze your research papers with AI</p>
                 </div>
-                <button @click="openHistoryModal()"
-                        class="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg transition-colors font-medium text-sm">
+                <a href="/history/"
+                   class="flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 rounded-xl transition-all duration-200 font-medium text-sm shadow-md hover:shadow-lg border border-slate-200">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
                     History
-                </button>
+                </a>
             </div>
 
             <!-- Error Alert -->
-            <div x-show="errorMessage" x-transition class="mb-6 rounded-lg bg-red-50 dark:bg-red-900/20 p-4 border border-red-200 dark:border-red-800">
+            <div x-show="errorMessage" x-transition class="mb-6 rounded-xl bg-red-50 p-4 border border-red-200 shadow-sm">
                 <div class="flex">
-                    <svg class="h-5 w-5 text-red-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <svg class="h-5 w-5 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
                     </svg>
                     <div class="ml-3">
-                        <p class="text-sm text-red-800 dark:text-red-200" x-text="errorMessage"></p>
+                        <p class="text-sm text-red-800" x-text="errorMessage"></p>
                     </div>
                 </div>
             </div>
 
             <!-- Upload Area -->
-            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-lg border-2 transition-all duration-200"
-                 :class="isDragging ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/10 scale-[1.02]' : 'border-slate-300 dark:border-slate-600 hover:border-blue-400 dark:hover:border-blue-500'"
+            <div class="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border-2 transition-all duration-200"
+                 :class="isDragging ? 'border-blue-500 bg-blue-50/80 scale-[1.02]' : 'border-slate-200 hover:border-blue-300'"
                  @dragover="handleDragOver($event)"
                  @dragleave="handleDragLeave($event)"
                  @drop="handleDrop($event)">
@@ -442,14 +548,14 @@
                     <svg class="mx-auto h-16 w-16 text-slate-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
                         <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                     </svg>
-                    <p class="mt-6 text-slate-600 dark:text-slate-400">
-                        <span class="font-medium text-blue-600 dark:text-blue-400">Upload a PDF</span>
+                    <p class="mt-6 text-slate-600">
+                        <span class="font-medium text-blue-600">Upload a PDF</span>
                         or drag and drop
                     </p>
-                    <p class="mt-2 text-sm text-slate-500 dark:text-slate-500">
-                        PDF up to 10MB
+                    <p class="mt-2 text-sm text-slate-500">
+                        PDF up to {{ max_pdf_size_mb }}MB
                     </p>
-                    <label class="mt-8 inline-block cursor-pointer px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+                    <label class="mt-8 inline-block cursor-pointer px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium rounded-xl transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
                         Select File
                         <input type="file" class="hidden" accept="application/pdf" @change="selectFile($event.target.files[0])">
                     </label>
@@ -459,26 +565,34 @@
                 <div x-show="file" x-transition class="p-8">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-4">
-                            <div class="flex-shrink-0 w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-xl flex items-center justify-center">
-                                <svg class="w-6 h-6 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                            <div class="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-red-50 to-red-100 rounded-xl flex items-center justify-center border border-red-200">
+                                <svg class="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"></path>
                                 </svg>
                             </div>
                             <div>
-                                <p class="font-medium text-slate-900 dark:text-white truncate max-w-xs" x-text="file?.name"></p>
-                                <p class="text-sm text-slate-500 dark:text-slate-400" x-text="(file?.size / 1024 / 1024).toFixed(2) + ' MB'"></p>
+                                <p class="font-medium text-slate-900 truncate max-w-xs" x-text="file?.name"></p>
+                                <p class="text-sm text-slate-500">
+                                    <span x-text="(file?.size / 1024 / 1024).toFixed(2) + ' MB'"></span>
+                                    <template x-if="isCountingWords">
+                                        <span class="ml-2 text-blue-600">Counting words...</span>
+                                    </template>
+                                    <template x-if="!isCountingWords && wordCount > 0">
+                                        <span class="ml-2" x-text="'• ' + wordCount.toLocaleString() + ' words'"></span>
+                                    </template>
+                                </p>
                             </div>
                         </div>
                         <div class="flex gap-2">
                             <button @click="showPreview = true"
-                                    class="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
+                                    class="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition-colors">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                                 </svg>
                             </button>
                             <button @click="removeFile()"
-                                    class="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
+                                    class="p-2 text-red-600 hover:bg-red-50 rounded-xl transition-colors">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                                 </svg>
@@ -488,7 +602,7 @@
 
                     <button @click="analyzePaper()"
                             :disabled="isAnalyzing"
-                            class="mt-6 w-full py-4 px-6 border border-transparent text-base font-semibold rounded-xl text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition duration-200 ease-in-out shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                            class="mt-6 w-full py-4 px-6 border border-transparent text-base font-semibold rounded-xl text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition duration-200 ease-in-out shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
                         <svg x-show="isAnalyzing" class="animate-spin inline -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" style="display: none;">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -501,44 +615,116 @@
 
             <!-- Features -->
             <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-5 border border-slate-200 dark:border-slate-700">
+                <div class="bg-white/80 backdrop-blur-lg rounded-xl shadow-sm p-5 border border-slate-200">
                     <div class="flex items-center gap-3">
-                        <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                            <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center border border-blue-200">
+                            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                             </svg>
                         </div>
                         <div>
-                            <h3 class="font-semibold text-slate-900 dark:text-white text-sm">AI-Powered</h3>
-                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Advanced LLM analysis</p>
+                            <h3 class="font-semibold text-slate-900 text-sm">AI-Powered</h3>
+                            <p class="text-xs text-slate-500 mt-0.5">Advanced LLM analysis</p>
                         </div>
                     </div>
                 </div>
 
-                <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-5 border border-slate-200 dark:border-slate-700">
+                <div class="bg-white/80 backdrop-blur-lg rounded-xl shadow-sm p-5 border border-slate-200">
                     <div class="flex items-center gap-3">
-                        <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
-                            <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-50 to-indigo-100 flex items-center justify-center border border-indigo-200">
+                            <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
                             </svg>
                         </div>
                         <div>
-                            <h3 class="font-semibold text-slate-900 dark:text-white text-sm">Breakdown</h3>
-                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">8 key sections</p>
+                            <h3 class="font-semibold text-slate-900 text-sm">Breakdown</h3>
+                            <p class="text-xs text-slate-500 mt-0.5">8 key sections</p>
                         </div>
                     </div>
                 </div>
 
-                <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-5 border border-slate-200 dark:border-slate-700">
+                <div class="bg-white/80 backdrop-blur-lg rounded-xl shadow-sm p-5 border border-slate-200">
                     <div class="flex items-center gap-3">
-                        <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                            <svg class="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-purple-50 to-purple-100 flex items-center justify-center border border-purple-200">
+                            <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                             </svg>
                         </div>
                         <div>
-                            <h3 class="font-semibold text-slate-900 dark:text-white text-sm">Fast</h3>
-                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Results in seconds</p>
+                            <h3 class="font-semibold text-slate-900 text-sm">Fast</h3>
+                            <p class="text-xs text-slate-500 mt-0.5">Results in seconds</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading State (standalone section) -->
+        <div x-show="isAnalyzing" x-transition class="max-w-3xl mx-auto">
+            <div class="flex flex-col items-center justify-center py-20">
+                <!-- Progress Bar Container -->
+                <div class="w-full max-w-lg">
+                    <!-- File Info -->
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-red-50 to-red-100 rounded-xl flex items-center justify-center border border-red-200">
+                                <svg class="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="font-medium text-slate-900" x-text="file?.name"></p>
+                                <p class="text-sm text-slate-500">
+                                    <span x-text="(file?.size / 1024 / 1024).toFixed(2) + ' MB'"></span>
+                                    <template x-if="wordCount > 0">
+                                        <span class="ml-2" x-text="'• ' + wordCount.toLocaleString() + ' words'"></span>
+                                    </template>
+                                </p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-2xl font-bold text-blue-600" x-text="Math.round(progress) + '%'"></p>
+                            <p class="text-xs text-slate-500" x-text="estimatedTime + 's estimated'"></p>
+                        </div>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="relative h-4 bg-slate-200 rounded-full overflow-hidden shadow-inner">
+                        <div class="absolute inset-0 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-300 ease-out"
+                             :style="'width: ' + progress + '%'"></div>
+                        <!-- Animated shimmer effect -->
+                        <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-30 rounded-full"
+                             style="animation: shimmer 2s infinite"></div>
+                    </div>
+
+                    <!-- Status Text -->
+                    <div class="mt-6 text-center">
+                        <p class="text-lg font-medium text-slate-700">Analyzing your paper...</p>
+                        <p class="text-sm text-slate-500 mt-1">
+                            <span x-show="progress < 95">Processing document content</span>
+                            <span x-show="progress >= 95">Finalizing analysis...</span>
+                        </p>
+                    </div>
+
+                    <!-- Processing Steps -->
+                    <div class="mt-6 flex items-center justify-center gap-6 text-xs text-slate-500">
+                        <div class="flex items-center gap-1.5">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <span>Extracting text</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                            </svg>
+                            <span>AI Analysis</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            <span>Generating report</span>
                         </div>
                     </div>
                 </div>
@@ -546,265 +732,390 @@
         </div>
 
         <!-- Analysis Results: Card Grid Layout -->
-        <div x-show="hasAnalyzed" x-transition class="max-w-7xl mx-auto">
+        <div x-show="hasAnalyzed && !isAnalyzing" x-transition class="max-w-7xl mx-auto">
             <!-- Header with File Info and Actions -->
-            <div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                    <h1 class="text-3xl font-bold text-slate-900 dark:text-white">Analysis Results</h1>
-                    <p class="mt-1 text-slate-600 dark:text-slate-400" x-text="file?.name || 'Your paper'"></p>
+            <div class="mb-8 max-w-7xl mx-auto">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div class="flex-1">
+                        <a href="/history/" class="inline-flex items-center text-blue-600 hover:text-blue-700 mb-2 text-sm font-medium">
+                            <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                            </svg>
+                            Back to History
+                        </a>
+                        <h1 class="text-3xl font-bold text-slate-900">Analysis Results</h1>
+                        <p class="mt-1 text-slate-600" x-text="file?.name || 'Your paper'"></p>
+                    </div>
+                    <div class="flex gap-3">
+                        <button @click="resetAnalysis()"
+                                class="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-red-50 hover:border-red-300 hover:text-red-600 transition-colors font-medium text-sm flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                            Delete
+                        </button>
+                        <a x-show="analysisId" :href="`/history/${analysisId}/export/pdf/`"
+                           class="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-green-50 hover:border-green-300 hover:text-green-600 transition-colors font-medium text-sm flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            Export PDF
+                        </a>
+                        <a x-show="pdfPreviewUrl" :href="pdfPreviewUrl" target="_blank" rel="noopener"
+                           class="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg font-medium text-sm flex items-center gap-2 shadow-md hover:shadow-lg transition-all duration-200">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                            </svg>
+                            View PDF
+                        </a>
+                    </div>
                 </div>
-                <div class="flex gap-3">
-                    <button @click="resetAnalysis()"
-                            class="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors font-medium text-sm flex items-center gap-2">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                        </svg>
-                        New Analysis
-                    </button>
-                    <button @click="showPreview = true"
-                            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium text-sm flex items-center gap-2">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                        </svg>
-                        View PDF
-                    </button>
-                </div>
-            </div>
-
-            <!-- Loading State -->
-            <div x-show="isAnalyzing" class="flex flex-col items-center justify-center py-20">
-                <svg class="animate-spin h-16 w-16 text-blue-500" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <p class="mt-4 text-lg font-medium text-slate-700 dark:text-slate-300">Analyzing your paper...</p>
-                <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">This may take a moment</p>
             </div>
 
             <!-- Analysis Cards Grid -->
             <div x-show="analysisResult && !isAnalyzing" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 <!-- Abstract Card -->
                 <template x-if="analysisResult?.abstract">
-                    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-md transition-shadow duration-200 h-[280px] flex flex-col">
-                        <div class="px-5 py-4 flex-shrink-0 bg-gradient-to-r from-blue-50 to-blue-100/50 dark:from-blue-900/20 dark:to-blue-800/10">
+                    <div class="bg-white/90 backdrop-blur-lg rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow duration-200 h-[280px] flex flex-col">
+                        <div class="px-5 py-4 flex-shrink-0 bg-gradient-to-r from-blue-50 to-blue-100/50">
                             <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-lg bg-blue-500 flex items-center justify-center flex-shrink-0">
+                                <div class="w-10 h-10 rounded-lg bg-blue-500 flex items-center justify-center flex-shrink-0 shadow-md">
                                     <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                                     </svg>
                                 </div>
                                 <div class="text-left">
-                                    <h3 class="font-semibold text-blue-900 dark:text-blue-100">Abstract</h3>
-                                    <p class="text-xs text-blue-600 dark:text-blue-400 mt-0.5">Paper summary</p>
+                                    <h3 class="font-semibold text-blue-900">Abstract</h3>
+                                    <p class="text-xs text-blue-600 mt-0.5">Paper summary</p>
                                 </div>
                             </div>
                         </div>
                         <div class="px-5 py-4 flex-1 overflow-hidden">
-                            <p class="text-sm text-slate-700 dark:text-slate-300 leading-relaxed line-clamp-6" x-text="truncateText(analysisResult?.abstract, 180)"></p>
+                            <p class="text-sm text-slate-700 leading-relaxed line-clamp-6" x-text="truncateText(analysisResult?.abstract, 180)"></p>
                         </div>
-                        <div class="px-5 py-3 border-t border-slate-200 dark:border-slate-700 flex-shrink-0">
-                            <button @click="openDetailModal('Abstract', analysisResult?.abstract, 'blue')"
-                                    class="w-full py-2 px-4 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-sm font-medium rounded-lg transition-colors">
-                                View Full Detail
-                            </button>
+                        <div class="px-5 py-3 border-t border-slate-200 flex-shrink-0">
+                            <div class="flex gap-2">
+                                <button @click="copyToClipboard(analysisResult?.abstract || '', 'Abstract')"
+                                        class="flex-1 py-2 px-3 bg-slate-50 hover:bg-slate-100 text-slate-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
+                                        title="Copy Abstract">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                    </svg>
+                                    Copy
+                                </button>
+                                <button @click="openDetailModal('Abstract', analysisResult?.abstract, 'blue')"
+                                        class="flex-1 py-2 px-3 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
+                                        title="View full detail">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                    </svg>
+                                    Detail
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </template>
 
                 <!-- Motivation Card -->
                 <template x-if="analysisResult?.motivation">
-                    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-md transition-shadow duration-200 h-[280px] flex flex-col">
-                        <div class="px-5 py-4 flex-shrink-0 bg-gradient-to-r from-purple-50 to-purple-100/50 dark:from-purple-900/20 dark:to-purple-800/10">
+                    <div class="bg-white/90 backdrop-blur-lg rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow duration-200 h-[280px] flex flex-col">
+                        <div class="px-5 py-4 flex-shrink-0 bg-gradient-to-r from-purple-50 to-purple-100/50">
                             <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-lg bg-purple-500 flex items-center justify-center flex-shrink-0">
+                                <div class="w-10 h-10 rounded-lg bg-purple-500 flex items-center justify-center flex-shrink-0 shadow-md">
                                     <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
                                     </svg>
                                 </div>
                                 <div class="text-left">
-                                    <h3 class="font-semibold text-purple-900 dark:text-purple-100">Motivation</h3>
-                                    <p class="text-xs text-purple-600 dark:text-purple-400 mt-0.5">Why this research</p>
+                                    <h3 class="font-semibold text-purple-900">Motivation</h3>
+                                    <p class="text-xs text-purple-600 mt-0.5">Why this research</p>
                                 </div>
                             </div>
                         </div>
                         <div class="px-5 py-4 flex-1 overflow-hidden">
-                            <p class="text-sm text-slate-700 dark:text-slate-300 leading-relaxed line-clamp-6" x-text="truncateText(analysisResult?.motivation, 180)"></p>
+                            <p class="text-sm text-slate-700 leading-relaxed line-clamp-6" x-text="truncateText(analysisResult?.motivation, 180)"></p>
                         </div>
-                        <div class="px-5 py-3 border-t border-slate-200 dark:border-slate-700 flex-shrink-0">
-                            <button @click="openDetailModal('Motivation', analysisResult?.motivation, 'purple')"
-                                    class="w-full py-2 px-4 bg-purple-50 hover:bg-purple-100 dark:bg-purple-900/20 dark:hover:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-sm font-medium rounded-lg transition-colors">
-                                View Full Detail
-                            </button>
+                        <div class="px-5 py-3 border-t border-slate-200 flex-shrink-0">
+                            <div class="flex gap-2">
+                                <button @click="copyToClipboard(analysisResult?.motivation || '', 'Motivation')"
+                                        class="flex-1 py-2 px-3 bg-slate-50 hover:bg-slate-100 text-slate-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
+                                        title="Copy Motivation">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                    </svg>
+                                    Copy
+                                </button>
+                                <button @click="openDetailModal('Motivation', analysisResult?.motivation, 'purple')"
+                                        class="flex-1 py-2 px-3 bg-purple-50 hover:bg-purple-100 text-purple-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
+                                        title="View full detail">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                    </svg>
+                                    Detail
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </template>
 
                 <!-- Contribution Card -->
                 <template x-if="analysisResult?.contribution">
-                    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-md transition-shadow duration-200 h-[280px] flex flex-col">
-                        <div class="px-5 py-4 flex-shrink-0 bg-gradient-to-r from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10">
+                    <div class="bg-white/90 backdrop-blur-lg rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow duration-200 h-[280px] flex flex-col">
+                        <div class="px-5 py-4 flex-shrink-0 bg-gradient-to-r from-green-50 to-green-100/50">
                             <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-lg bg-green-500 flex items-center justify-center flex-shrink-0">
+                                <div class="w-10 h-10 rounded-lg bg-green-500 flex items-center justify-center flex-shrink-0 shadow-md">
                                     <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
                                     </svg>
                                 </div>
                                 <div class="text-left">
-                                    <h3 class="font-semibold text-green-900 dark:text-green-100">Contribution</h3>
-                                    <p class="text-xs text-green-600 dark:text-green-400 mt-0.5">Key innovations</p>
+                                    <h3 class="font-semibold text-green-900">Contribution</h3>
+                                    <p class="text-xs text-green-600 mt-0.5">Key innovations</p>
                                 </div>
                             </div>
                         </div>
                         <div class="px-5 py-4 flex-1 overflow-hidden">
-                            <p class="text-sm text-slate-700 dark:text-slate-300 leading-relaxed line-clamp-6" x-text="truncateText(analysisResult?.contribution, 180)"></p>
+                            <p class="text-sm text-slate-700 leading-relaxed line-clamp-6" x-text="truncateText(analysisResult?.contribution, 180)"></p>
                         </div>
-                        <div class="px-5 py-3 border-t border-slate-200 dark:border-slate-700 flex-shrink-0">
-                            <button @click="openDetailModal('Contribution', analysisResult?.contribution, 'green')"
-                                    class="w-full py-2 px-4 bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/30 text-green-700 dark:text-green-300 text-sm font-medium rounded-lg transition-colors">
-                                View Full Detail
-                            </button>
-                        </div>
-                    </div>
-                </template>
-
-                <!-- What (Experiments) Card -->
-                <template x-if="analysisResult?.what_does_paper_do">
-                    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-md transition-shadow duration-200 h-[280px] flex flex-col">
-                        <div class="px-5 py-4 flex-shrink-0 bg-gradient-to-r from-indigo-50 to-indigo-100/50 dark:from-indigo-900/20 dark:to-indigo-800/10">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-lg bg-indigo-500 flex items-center justify-center flex-shrink-0">
-                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path>
+                        <div class="px-5 py-3 border-t border-slate-200 flex-shrink-0">
+                            <div class="flex gap-2">
+                                <button @click="copyToClipboard(analysisResult?.contribution || '', 'Contribution')"
+                                        class="flex-1 py-2 px-3 bg-slate-50 hover:bg-slate-100 text-slate-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
+                                        title="Copy Contribution">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
                                     </svg>
-                                </div>
-                                <div class="text-left">
-                                    <h3 class="font-semibold text-indigo-900 dark:text-indigo-100">Experiments</h3>
-                                    <p class="text-xs text-indigo-600 dark:text-indigo-400 mt-0.5">What was tested</p>
-                                </div>
+                                    Copy
+                                </button>
+                                <button @click="openDetailModal('Contribution', analysisResult?.contribution, 'green')"
+                                        class="flex-1 py-2 px-3 bg-green-50 hover:bg-green-100 text-green-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
+                                        title="View full detail">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                    </svg>
+                                    Detail
+                                </button>
                             </div>
-                        </div>
-                        <div class="px-5 py-4 flex-1 overflow-hidden">
-                            <p class="text-sm text-slate-700 dark:text-slate-300 leading-relaxed line-clamp-6" x-text="truncateText(analysisResult?.what_does_paper_do, 180)"></p>
-                        </div>
-                        <div class="px-5 py-3 border-t border-slate-200 dark:border-slate-700 flex-shrink-0">
-                            <button @click="openDetailModal('Experiments & Results', analysisResult?.what_does_paper_do, 'indigo')"
-                                    class="w-full py-2 px-4 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:hover:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-sm font-medium rounded-lg transition-colors">
-                                View Full Detail
-                            </button>
                         </div>
                     </div>
                 </template>
 
                 <!-- How (Methodology) Card -->
                 <template x-if="analysisResult?.how_does_paper_do">
-                    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-md transition-shadow duration-200 h-[280px] flex flex-col">
-                        <div class="px-5 py-4 flex-shrink-0 bg-gradient-to-r from-orange-50 to-orange-100/50 dark:from-orange-900/20 dark:to-orange-800/10">
+                    <div class="bg-white/90 backdrop-blur-lg rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow duration-200 h-[280px] flex flex-col">
+                        <div class="px-5 py-4 flex-shrink-0 bg-gradient-to-r from-amber-50 to-amber-100/50">
                             <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-lg bg-orange-500 flex items-center justify-center flex-shrink-0">
+                                <div class="w-10 h-10 rounded-lg bg-amber-500 flex items-center justify-center flex-shrink-0 shadow-md">
                                     <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                                     </svg>
                                 </div>
                                 <div class="text-left">
-                                    <h3 class="font-semibold text-orange-900 dark:text-orange-100">Methodology</h3>
-                                    <p class="text-xs text-orange-600 dark:text-orange-400 mt-0.5">How it works</p>
+                                    <h3 class="font-semibold text-amber-900">Methodology</h3>
+                                    <p class="text-xs text-amber-600 mt-0.5">How it works</p>
                                 </div>
                             </div>
                         </div>
                         <div class="px-5 py-4 flex-1 overflow-hidden">
-                            <p class="text-sm text-slate-700 dark:text-slate-300 leading-relaxed line-clamp-6" x-text="truncateText(analysisResult?.how_does_paper_do, 180)"></p>
+                            <p class="text-sm text-slate-700 leading-relaxed line-clamp-6" x-text="truncateText(analysisResult?.how_does_paper_do, 180)"></p>
                         </div>
-                        <div class="px-5 py-3 border-t border-slate-200 dark:border-slate-700 flex-shrink-0">
-                            <button @click="openDetailModal('Methodology & Framework', analysisResult?.how_does_paper_do, 'orange')"
-                                    class="w-full py-2 px-4 bg-orange-50 hover:bg-orange-100 dark:bg-orange-900/20 dark:hover:bg-orange-900/30 text-orange-700 dark:text-orange-300 text-sm font-medium rounded-lg transition-colors">
-                                View Full Detail
-                            </button>
+                        <div class="px-5 py-3 border-t border-slate-200 flex-shrink-0">
+                            <div class="flex gap-2">
+                                <button @click="copyToClipboard(analysisResult?.how_does_paper_do || '', 'Methodology')"
+                                        class="flex-1 py-2 px-3 bg-slate-50 hover:bg-slate-100 text-slate-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
+                                        title="Copy Methodology">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                    </svg>
+                                    Copy
+                                </button>
+                                <button @click="openDetailModal('Methodology', analysisResult?.how_does_paper_do, 'amber')"
+                                        class="flex-1 py-2 px-3 bg-amber-50 hover:bg-amber-100 text-amber-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
+                                        title="View full detail">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                    </svg>
+                                    Detail
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- What (Experiments) Card -->
+                <template x-if="analysisResult?.what_does_paper_do">
+                    <div class="bg-white/90 backdrop-blur-lg rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow duration-200 h-[280px] flex flex-col">
+                        <div class="px-5 py-4 flex-shrink-0 bg-gradient-to-r from-indigo-50 to-indigo-100/50">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-lg bg-indigo-500 flex items-center justify-center flex-shrink-0 shadow-md">
+                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path>
+                                    </svg>
+                                </div>
+                                <div class="text-left">
+                                    <h3 class="font-semibold text-indigo-900">Experiments</h3>
+                                    <p class="text-xs text-indigo-600 mt-0.5">What was tested</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="px-5 py-4 flex-1 overflow-hidden">
+                            <p class="text-sm text-slate-700 leading-relaxed line-clamp-6" x-text="truncateText(analysisResult?.what_does_paper_do, 180)"></p>
+                        </div>
+                        <div class="px-5 py-3 border-t border-slate-200 flex-shrink-0">
+                            <div class="flex gap-2">
+                                <button @click="copyToClipboard(analysisResult?.what_does_paper_do || '', 'Experiments')"
+                                        class="flex-1 py-2 px-3 bg-slate-50 hover:bg-slate-100 text-slate-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
+                                        title="Copy Experiments">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                    </svg>
+                                    Copy
+                                </button>
+                                <button @click="openDetailModal('Experiments & Results', analysisResult?.what_does_paper_do, 'indigo')"
+                                        class="flex-1 py-2 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
+                                        title="View full detail">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                    </svg>
+                                    Detail
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </template>
 
                 <!-- Limitations Card -->
                 <template x-if="analysisResult?.limitations_challenges">
-                    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-md transition-shadow duration-200 h-[280px] flex flex-col">
-                        <div class="px-5 py-4 flex-shrink-0 bg-gradient-to-r from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10">
+                    <div class="bg-white/90 backdrop-blur-lg rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow duration-200 h-[280px] flex flex-col">
+                        <div class="px-5 py-4 flex-shrink-0 bg-gradient-to-r from-red-50 to-red-100/50">
                             <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-lg bg-red-500 flex items-center justify-center flex-shrink-0">
+                                <div class="w-10 h-10 rounded-lg bg-red-500 flex items-center justify-center flex-shrink-0 shadow-md">
                                     <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
                                     </svg>
                                 </div>
                                 <div class="text-left">
-                                    <h3 class="font-semibold text-red-900 dark:text-red-100">Limitations</h3>
-                                    <p class="text-xs text-red-600 dark:text-red-400 mt-0.5">Challenges & constraints</p>
+                                    <h3 class="font-semibold text-red-900">Limitations</h3>
+                                    <p class="text-xs text-red-600 mt-0.5">Challenges & constraints</p>
                                 </div>
                             </div>
                         </div>
                         <div class="px-5 py-4 flex-1 overflow-hidden">
-                            <p class="text-sm text-slate-700 dark:text-slate-300 leading-relaxed line-clamp-6" x-text="truncateText(analysisResult?.limitations_challenges, 180)"></p>
+                            <p class="text-sm text-slate-700 leading-relaxed line-clamp-6" x-text="truncateText(analysisResult?.limitations_challenges, 180)"></p>
                         </div>
-                        <div class="px-5 py-3 border-t border-slate-200 dark:border-slate-700 flex-shrink-0">
-                            <button @click="openDetailModal('Limitations & Challenges', analysisResult?.limitations_challenges, 'red')"
-                                    class="w-full py-2 px-4 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 text-red-700 dark:text-red-300 text-sm font-medium rounded-lg transition-colors">
-                                View Full Detail
-                            </button>
+                        <div class="px-5 py-3 border-t border-slate-200 flex-shrink-0">
+                            <div class="flex gap-2">
+                                <button @click="copyToClipboard(analysisResult?.limitations_challenges || '', 'Limitations')"
+                                        class="flex-1 py-2 px-3 bg-slate-50 hover:bg-slate-100 text-slate-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
+                                        title="Copy Limitations">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                    </svg>
+                                    Copy
+                                </button>
+                                <button @click="openDetailModal('Limitations & Challenges', analysisResult?.limitations_challenges, 'red')"
+                                        class="flex-1 py-2 px-3 bg-red-50 hover:bg-red-100 text-red-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
+                                        title="View full detail">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                    </svg>
+                                    Detail
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </template>
 
                 <!-- Future Work Card -->
                 <template x-if="analysisResult?.future_work">
-                    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-md transition-shadow duration-200 h-[280px] flex flex-col">
-                        <div class="px-5 py-4 flex-shrink-0 bg-gradient-to-r from-cyan-50 to-cyan-100/50 dark:from-cyan-900/20 dark:to-cyan-800/10">
+                    <div class="bg-white/90 backdrop-blur-lg rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow duration-200 h-[280px] flex flex-col">
+                        <div class="px-5 py-4 flex-shrink-0 bg-gradient-to-r from-cyan-50 to-cyan-100/50">
                             <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-lg bg-cyan-500 flex items-center justify-center flex-shrink-0">
+                                <div class="w-10 h-10 rounded-lg bg-cyan-500 flex items-center justify-center flex-shrink-0 shadow-md">
                                     <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                                     </svg>
                                 </div>
                                 <div class="text-left">
-                                    <h3 class="font-semibold text-cyan-900 dark:text-cyan-100">Future Work</h3>
-                                    <p class="text-xs text-cyan-600 dark:text-cyan-400 mt-0.5">What's next</p>
+                                    <h3 class="font-semibold text-cyan-900">Future Work</h3>
+                                    <p class="text-xs text-cyan-600 mt-0.5">What's next</p>
                                 </div>
                             </div>
                         </div>
                         <div class="px-5 py-4 flex-1 overflow-hidden">
-                            <p class="text-sm text-slate-700 dark:text-slate-300 leading-relaxed line-clamp-6" x-text="truncateText(analysisResult?.future_work, 180)"></p>
+                            <p class="text-sm text-slate-700 leading-relaxed line-clamp-6" x-text="truncateText(analysisResult?.future_work, 180)"></p>
                         </div>
-                        <div class="px-5 py-3 border-t border-slate-200 dark:border-slate-700 flex-shrink-0">
-                            <button @click="openDetailModal('Future Work', analysisResult?.future_work, 'cyan')"
-                                    class="w-full py-2 px-4 bg-cyan-50 hover:bg-cyan-100 dark:bg-cyan-900/20 dark:hover:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 text-sm font-medium rounded-lg transition-colors">
-                                View Full Detail
-                            </button>
+                        <div class="px-5 py-3 border-t border-slate-200 flex-shrink-0">
+                            <div class="flex gap-2">
+                                <button @click="copyToClipboard(analysisResult?.future_work || '', 'Future Work')"
+                                        class="flex-1 py-2 px-3 bg-slate-50 hover:bg-slate-100 text-slate-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
+                                        title="Copy Future Work">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                    </svg>
+                                    Copy
+                                </button>
+                                <button @click="openDetailModal('Future Work', analysisResult?.future_work, 'cyan')"
+                                        class="flex-1 py-2 px-3 bg-cyan-50 hover:bg-cyan-100 text-cyan-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
+                                        title="View full detail">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                    </svg>
+                                    Detail
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </template>
 
                 <!-- Conclusion Card -->
                 <template x-if="analysisResult?.conclusion">
-                    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-md transition-shadow duration-200 h-[280px] flex flex-col">
-                        <div class="px-5 py-4 flex-shrink-0 bg-gradient-to-r from-slate-50 to-slate-100/50 dark:from-slate-900/20 dark:to-slate-800/10">
+                    <div class="bg-white/90 backdrop-blur-lg rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow duration-200 h-[280px] flex flex-col">
+                        <div class="px-5 py-4 flex-shrink-0 bg-gradient-to-r from-slate-50 to-slate-100/50">
                             <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-lg bg-slate-500 flex items-center justify-center flex-shrink-0">
+                                <div class="w-10 h-10 rounded-lg bg-slate-600 flex items-center justify-center flex-shrink-0 shadow-md">
                                     <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                                     </svg>
                                 </div>
                                 <div class="text-left">
-                                    <h3 class="font-semibold text-slate-900 dark:text-slate-100">Conclusion</h3>
-                                    <p class="text-xs text-slate-600 dark:text-slate-400 mt-0.5">Key takeaways</p>
+                                    <h3 class="font-semibold text-slate-900">Conclusion</h3>
+                                    <p class="text-xs text-slate-600 mt-0.5">Key takeaways</p>
                                 </div>
                             </div>
                         </div>
                         <div class="px-5 py-4 flex-1 overflow-hidden">
-                            <p class="text-sm text-slate-700 dark:text-slate-300 leading-relaxed line-clamp-6" x-text="truncateText(analysisResult?.conclusion, 180)"></p>
+                            <p class="text-sm text-slate-700 leading-relaxed line-clamp-6" x-text="truncateText(analysisResult?.conclusion, 180)"></p>
                         </div>
-                        <div class="px-5 py-3 border-t border-slate-200 dark:border-slate-700 flex-shrink-0">
-                            <button @click="openDetailModal('Conclusion', analysisResult?.conclusion, 'slate')"
-                                    class="w-full py-2 px-4 bg-slate-50 hover:bg-slate-100 dark:bg-slate-900/20 dark:hover:bg-slate-900/30 text-slate-700 dark:text-slate-300 text-sm font-medium rounded-lg transition-colors">
-                                View Full Detail
-                            </button>
+                        <div class="px-5 py-3 border-t border-slate-200 flex-shrink-0">
+                            <div class="flex gap-2">
+                                <button @click="copyToClipboard(analysisResult?.conclusion || '', 'Conclusion')"
+                                        class="flex-1 py-2 px-3 bg-slate-50 hover:bg-slate-100 text-slate-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
+                                        title="Copy Conclusion">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                    </svg>
+                                    Copy
+                                </button>
+                                <button @click="openDetailModal('Conclusion', analysisResult?.conclusion, 'slate')"
+                                        class="flex-1 py-2 px-3 bg-slate-50 hover:bg-slate-100 text-slate-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
+                                        title="View full detail">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                    </svg>
+                                    Detail
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </template>
@@ -836,17 +1147,17 @@
                  x-transition:leave-end="opacity-0 scale-95">
 
                 <!-- Modal Content -->
-                <div class="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+                <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
                     <!-- Modal Header -->
-                    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
+                    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50">
                         <div class="flex items-center gap-2">
                             <svg class="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"></path>
                             </svg>
-                            <h3 class="text-lg font-semibold text-slate-900 dark:text-white truncate max-w-md" x-text="file?.name"></h3>
+                            <h3 class="text-lg font-semibold text-slate-900 truncate max-w-md" x-text="file?.name"></h3>
                         </div>
                         <button @click="showPreview = false"
-                                class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700">
+                                class="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-lg hover:bg-slate-200">
                             <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                             </svg>
@@ -854,21 +1165,21 @@
                     </div>
 
                     <!-- Modal Body - PDF iframe -->
-                    <div class="flex-1 overflow-auto p-4 bg-slate-100 dark:bg-slate-900">
+                    <div class="flex-1 overflow-auto p-4 bg-slate-100">
                         <iframe :src="pdfPreviewUrl"
-                                class="w-full h-[700px] rounded-lg border border-slate-200 dark:border-slate-700 bg-white"
+                                class="w-full h-[700px] rounded-lg border border-slate-200 bg-white"
                                 type="application/pdf"></iframe>
                     </div>
 
                     <!-- Modal Footer -->
-                    <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
+                    <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-200 bg-slate-50">
                         <a :href="pdfPreviewUrl"
                            :download="file?.name"
-                           class="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors font-medium">
+                           class="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-100 transition-colors font-medium">
                             Download PDF
                         </a>
                         <button @click="showPreview = false"
-                                class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium">
+                                class="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg transition-colors font-medium">
                             Close
                         </button>
                     </div>
@@ -901,44 +1212,55 @@
                  x-transition:leave-end="opacity-0 scale-95">
 
                 <!-- Modal Content -->
-                <div class="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+                <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
                     <!-- Modal Header -->
-                    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
+                    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50">
                         <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                            <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md"
                                  :class="{
                                      'bg-blue-500': currentDetailColor === 'blue',
                                      'bg-purple-500': currentDetailColor === 'purple',
                                      'bg-green-500': currentDetailColor === 'green',
                                      'bg-indigo-500': currentDetailColor === 'indigo',
-                                     'bg-orange-500': currentDetailColor === 'orange',
+                                     'bg-amber-500': currentDetailColor === 'amber',
                                      'bg-red-500': currentDetailColor === 'red',
                                      'bg-cyan-500': currentDetailColor === 'cyan',
-                                     'bg-slate-500': currentDetailColor === 'slate'
+                                     'bg-slate-600': currentDetailColor === 'slate'
                                  }">
                                 <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                                 </svg>
                             </div>
-                            <h3 class="text-lg font-semibold text-slate-900 dark:text-white" x-text="currentDetailTitle"></h3>
+                            <h3 class="text-lg font-semibold text-slate-900" x-text="currentDetailTitle"></h3>
                         </div>
-                        <button @click="closeDetailModal()"
-                                class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700">
-                            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                            </svg>
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <button @click="copyToClipboard(currentDetail || '', currentDetailTitle)"
+                                    class="text-slate-400 hover:text-slate-600 transition-colors p-2 rounded-lg hover:bg-slate-200"
+                                    title="Copy to clipboard">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                </svg>
+                            </button>
+                            <button @click="closeDetailModal()"
+                                    class="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-lg hover:bg-slate-200">
+                                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Modal Body -->
-                    <div class="flex-1 overflow-auto p-6 prose prose-sm dark:prose-invert max-w-none">
-                        <div x-html="renderMarkdown(currentDetail)"></div>
+                    <div class="flex-1 overflow-y-auto">
+                        <div class="p-6 prose prose-sm max-w-none">
+                            <div x-html="renderMarkdown(currentDetail)"></div>
+                        </div>
                     </div>
 
                     <!-- Modal Footer -->
-                    <div class="flex items-center justify-end px-6 py-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
+                    <div class="flex items-center justify-end px-6 py-4 border-t border-slate-200 bg-slate-50">
                         <button @click="closeDetailModal()"
-                                class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium">
+                                class="px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg transition-colors font-medium">
                             Close
                         </button>
                     </div>
@@ -971,19 +1293,19 @@
                  x-transition:leave-end="opacity-0 scale-95">
 
                 <!-- Modal Content -->
-                <div class="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+                <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
                     <!-- Modal Header -->
-                    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
+                    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50">
                         <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-lg bg-indigo-500 flex items-center justify-center flex-shrink-0">
+                            <div class="w-10 h-10 rounded-lg bg-indigo-500 flex items-center justify-center flex-shrink-0 shadow-md">
                                 <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                 </svg>
                             </div>
-                            <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Analysis History</h3>
+                            <h3 class="text-lg font-semibold text-slate-900">Analysis History</h3>
                         </div>
                         <button @click="closeHistoryModal()"
-                                class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700">
+                                class="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-lg hover:bg-slate-200">
                             <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                             </svg>
@@ -997,7 +1319,7 @@
                             <svg class="mx-auto h-12 w-12 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                             </svg>
-                            <p class="mt-4 text-sm text-slate-600 dark:text-slate-400">
+                            <p class="mt-4 text-sm text-slate-600">
                                 No analysis history yet
                             </p>
                         </div>
@@ -1008,38 +1330,38 @@
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
-                            <p class="mt-4 text-sm text-slate-600 dark:text-slate-400">Loading history...</p>
+                            <p class="mt-4 text-sm text-slate-600">Loading history...</p>
                         </div>
 
                         <!-- History List -->
                         <div x-show="historyData.length > 0" class="space-y-3">
                             <template x-for="(item, index) in historyData" :key="item.id">
                                 <div @click="viewAnalysis(item.id)"
-                                     class="flex items-center justify-between p-4 bg-white dark:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 hover:border-blue-300 dark:hover:border-blue-500 hover:shadow-md transition-all cursor-pointer group">
+                                     class="flex items-center justify-between p-4 bg-white rounded-lg border border-slate-200 hover:border-blue-300 hover:shadow-md transition-all cursor-pointer group">
                                     <div class="flex items-center gap-4 flex-1 min-w-0">
                                         <!-- PDF Icon -->
-                                        <div class="flex-shrink-0 w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center">
-                                            <svg class="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                                        <div class="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-red-50 to-red-100 rounded-lg flex items-center justify-center border border-red-200">
+                                            <svg class="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
                                                 <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"></path>
                                             </svg>
                                         </div>
 
                                         <!-- Paper Info -->
                                         <div class="flex-1 min-w-0">
-                                            <h4 class="text-sm font-semibold text-slate-900 dark:text-white truncate" x-text="item.title"></h4>
+                                            <h4 class="text-sm font-semibold text-slate-900 truncate" x-text="item.title"></h4>
                                             <div class="flex items-center gap-3 mt-1">
-                                                <span class="text-xs text-slate-500 dark:text-slate-400" x-text="formatDate(item.created_date)"></span>
-                                                <span class="text-xs text-slate-400 dark:text-slate-500">•</span>
-                                                <span class="text-xs text-slate-500 dark:text-slate-400" x-text="item.file_size_mb + ' MB'"></span>
+                                                <span class="text-xs text-slate-500" x-text="formatDate(item.created_date)"></span>
+                                                <span class="text-xs text-slate-400">•</span>
+                                                <span class="text-xs text-slate-500" x-text="item.file_size_mb + ' MB'"></span>
                                             </div>
-                                            <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 line-clamp-2" x-text="item.abstract"></p>
+                                            <p class="text-xs text-slate-600 mt-1 line-clamp-2" x-text="item.abstract"></p>
                                         </div>
                                     </div>
 
                                     <!-- Actions -->
                                     <div class="flex items-center gap-2 ml-4">
                                         <button @click="viewAnalysis(item.id)"
-                                                class="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                                                class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
                                                 title="View Analysis">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
@@ -1047,7 +1369,7 @@
                                             </svg>
                                         </button>
                                         <button @click="deleteAnalysis(item.id, $event)"
-                                                class="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                                                class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
                                                 title="Delete">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
@@ -1060,7 +1382,7 @@
                             <!-- Load More Button -->
                             <div x-show="historyHasMore && !historyLoading" class="text-center pt-4">
                                 <button @click="loadMoreHistory()"
-                                        class="px-6 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg transition-colors font-medium text-sm">
+                                        class="px-6 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors font-medium text-sm">
                                     Load More
                                 </button>
                             </div>
@@ -1068,9 +1390,9 @@
                     </div>
 
                     <!-- Modal Footer -->
-                    <div class="flex items-center justify-end px-6 py-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
+                    <div class="flex items-center justify-end px-6 py-4 border-t border-slate-200 bg-slate-50">
                         <button @click="closeHistoryModal()"
-                                class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium">
+                                class="px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg transition-colors font-medium">
                             Close
                         </button>
                     </div>

@@ -8,10 +8,23 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from django.core.paginator import Paginator
 from django.db import models
+from django.conf import settings
+from django.template.loader import render_to_string
 import json
 import logging
 import os
 from datetime import datetime
+import markdown
+import re
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+from reportlab.platypus import ListFlowable, ListItem
+from reportlab.lib.enums import TA_LEFT, TA_JUSTIFY
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.lib.colors import HexColor
 
 from .services import analyze_paper
 from .models import PaperAnalysis
@@ -24,7 +37,10 @@ def analyzer(request):
     """
     Paper analyzer page view - requires authentication.
     """
-    return render(request, 'analyzer.html')
+    context = {
+        'max_pdf_size_mb': settings.MAX_PDF_SIZE_MB,
+    }
+    return render(request, 'analyzer.html', context)
 
 
 @login_required(login_url='/login/')
@@ -48,11 +64,12 @@ def analyze_pdf(request):
             'error': 'Invalid file format. Please upload a PDF file.'
         }, status=400)
 
-    # Validate file size (10MB max)
-    if pdf_file.size > 10 * 1024 * 1024:
+    # Validate file size using settings
+    max_size_bytes = settings.MAX_PDF_SIZE_MB * 1024 * 1024
+    if pdf_file.size > max_size_bytes:
         return JsonResponse({
             'success': False,
-            'error': 'File size exceeds 10MB limit.'
+            'error': f'File size exceeds {settings.MAX_PDF_SIZE_MB}MB limit.'
         }, status=400)
 
     try:
@@ -293,4 +310,285 @@ def custom_logout(request):
     """
     logout(request)
     return redirect('/login/')
+
+
+@login_required(login_url='/login/')
+def export_analysis_pdf(request, analysis_id):
+    """
+    Export an analysis as a PDF file using ReportLab with proper markdown formatting.
+    """
+    analysis = get_object_or_404(PaperAnalysis, id=analysis_id, user=request.user)
+
+    try:
+        # Create filename
+        safe_title = analysis.title.replace(' ', '_').replace('/', '_').replace('\\', '_')[:100]
+        filename = f"{safe_title}_analysis_report.pdf"
+
+        # Create HttpResponse with PDF content type
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+        # Create PDF document
+        doc = SimpleDocTemplate(
+            response,
+            pagesize=A4,
+            rightMargin=72,
+            leftMargin=72,
+            topMargin=72,
+            bottomMargin=72
+        )
+
+        # Get styles
+        styles = getSampleStyleSheet()
+
+        # Custom styles
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=20,
+            textColor=HexColor('#1e3a8a'),
+            spaceAfter=20,
+            spaceBefore=20,
+            alignment=TA_LEFT,
+        )
+
+        heading_style = ParagraphStyle(
+            'CustomHeading',
+            parent=styles['Heading2'],
+            fontSize=14,
+            textColor=HexColor('#1e40af'),
+            spaceAfter=12,
+            spaceBefore=15,
+        )
+
+        body_style = ParagraphStyle(
+            'CustomBody',
+            parent=styles['BodyText'],
+            fontSize=11,
+            spaceAfter=12,
+            alignment=TA_JUSTIFY,
+            leading=16,
+        )
+
+        # Tighter spacing for list items to match browser view
+        list_item_style = ParagraphStyle(
+            'ListItem',
+            parent=body_style,
+            spaceAfter=6,  # Tighter spacing for list items
+            leading=14,    # Slightly tighter line height
+        )
+
+        code_style = ParagraphStyle(
+            'Code',
+            parent=styles['Code'],
+            fontSize=9,
+            leftIndent=20,
+            spaceAfter=12,
+            spaceBefore=6,
+            backColor=HexColor('#f3f4f6'),
+        )
+
+        def parse_markdown_to_flowables(text, body_style, code_style, list_item_style):
+            """Parse markdown text and convert to ReportLab flowables with proper nested list support."""
+            if not text:
+                return []
+
+            flowables = []
+            lines = text.split('\n')
+            i = 0
+
+            while i < len(lines):
+                line = lines[i]
+
+                # Empty line - skip
+                if not line.strip():
+                    i += 1
+                    continue
+
+                stripped = line.strip()
+
+                # Code block (``` or ~~~)
+                if stripped.startswith('```') or stripped.startswith('~~~'):
+                    i += 1
+                    code_lines = []
+                    while i < len(lines) and not lines[i].strip().startswith('```') and not lines[i].strip().startswith('~~~'):
+                        code_lines.append(lines[i])
+                        i += 1
+                    code_text = '<br/>'.join(code_lines)
+                    flowables.append(Paragraph(f'<code>{code_text}</code>', code_style))
+                    i += 1
+                    continue
+
+                # Check if this is a list item (bullet or numbered)
+                is_bullet = stripped.startswith('- ') or stripped.startswith('* ')
+                is_numbered = re.match(r'^(\d+)\.\s+(.*)$', stripped)
+
+                if is_bullet or is_numbered:
+                    # Process this list item and any nested items following it
+                    # Keep the original marker and add nested items immediately after
+
+                    # Get the base indentation (for this item)
+                    base_indent = len(line) - len(line.lstrip())
+
+                    # Add the current list item with tight spacing
+                    item_content = stripped
+                    if is_bullet:
+                        # Remove bullet marker
+                        item_content = stripped[2:].strip()
+                        item_content = markdown_to_html_inline(item_content)
+                        # Add bullet point with list_item_style (tighter spacing)
+                        flowables.append(Paragraph(f'• {item_content}', list_item_style))
+                    else:
+                        # Keep the number with list_item_style
+                        item_content = markdown_to_html_inline(stripped)
+                        flowables.append(Paragraph(item_content, list_item_style))
+
+                    i += 1
+
+                    # Now look for nested items (indented more than base)
+                    while i < len(lines):
+                        next_line = lines[i]
+                        if not next_line.strip():
+                            # Empty line ends the list
+                            break
+
+                        next_indent = len(next_line) - len(next_line.lstrip())
+                        next_stripped = next_line.strip()
+
+                        # Check if next item is nested (more indented) and is a list item
+                        if next_indent > base_indent:
+                            next_is_bullet = next_stripped.startswith('- ') or next_stripped.startswith('* ')
+                            next_is_numbered = re.match(r'^(\d+)\.\s+(.*)$', next_stripped)
+
+                            if next_is_bullet or next_is_numbered:
+                                # This is a nested item - add it with proper indentation and tight spacing
+                                nested_indent = 20 + next_indent
+                                nested_style = ParagraphStyle(
+                                    f'Nested{nested_indent}',
+                                    parent=list_item_style,  # Use list_item_style for consistent tight spacing
+                                    leftIndent=nested_indent,
+                                    spaceBefore=3,
+                                    spaceAfter=3
+                                )
+
+                                if next_is_bullet:
+                                    nested_content = next_stripped[2:].strip()
+                                    nested_content = markdown_to_html_inline(nested_content)
+                                    flowables.append(Paragraph(f'• {nested_content}', nested_style))
+                                else:
+                                    nested_content = markdown_to_html_inline(next_stripped)
+                                    flowables.append(Paragraph(nested_content, nested_style))
+
+                                i += 1
+                            else:
+                                # Not a list item, end of nested section
+                                break
+                        else:
+                            # Not indented more, end of this item's nested section
+                            # But it might be another top-level list item, so continue to next iteration
+                            # Don't increment i, let the outer loop handle it
+                            break
+
+                    # Add a small spacer after list group (smaller than before)
+                    flowables.append(Spacer(1, 0.05 * inch))
+                    continue
+
+                # Header
+                if stripped.startswith('###'):
+                    header_text = stripped[3:].strip()
+                    header_text = markdown_to_html_inline(header_text)
+                    flowables.append(Paragraph(f'<b>{header_text}</b>', body_style))
+                    flowables.append(Spacer(1, 0.1 * inch))
+                    i += 1
+                    continue
+                elif stripped.startswith('##'):
+                    header_text = stripped[2:].strip()
+                    header_text = markdown_to_html_inline(header_text)
+                    flowables.append(Paragraph(f'<b>{header_text}</b>', body_style))
+                    flowables.append(Spacer(1, 0.1 * inch))
+                    i += 1
+                    continue
+
+                # Regular paragraph - might span multiple lines
+                para_lines = []
+                while i < len(lines):
+                    curr_line = lines[i]
+                    curr_stripped = curr_line.strip()
+                    # Stop at empty line or list/header/code
+                    if not curr_stripped:
+                        break
+                    if curr_stripped.startswith('- ') or curr_stripped.startswith('* '):
+                        break
+                    if re.match(r'^\d+\.\s+', curr_stripped):
+                        break
+                    if curr_stripped.startswith('#') or curr_stripped.startswith('```') or curr_stripped.startswith('~~~'):
+                        break
+                    para_lines.append(curr_stripped)
+                    i += 1
+
+                if para_lines:
+                    para_text = ' '.join(para_lines)
+                    para_text = markdown_to_html_inline(para_text)
+                    flowables.append(Paragraph(para_text, body_style))
+                    flowables.append(Spacer(1, 0.1 * inch))
+
+            return flowables
+
+        def markdown_to_html_inline(text):
+            """Convert inline markdown to HTML."""
+            if not text:
+                return ''
+
+            # Bold
+            text = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', text)
+            text = re.sub(r'__(.*?)__', r'<b>\1</b>', text)
+
+            # Italic
+            text = re.sub(r'\*(.*?)\*', r'<i>\1</i>', text)
+            text = re.sub(r'_(.*?)_', r'<i>\1</i>', text)
+
+            # Code
+            text = re.sub(r'`(.*?)`', r'<code>\1</code>', text)
+
+            # Links
+            text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2">\1</a>', text)
+
+            return text
+
+        # Build the story (content)
+        story = []
+
+        # Add title
+        story.append(Paragraph(analysis.title, title_style))
+        story.append(Spacer(1, 0.2 * inch))
+
+        # Helper function to add section
+        def add_section(title, content):
+            if content:
+                story.append(Paragraph(title, heading_style))
+                section_flowables = parse_markdown_to_flowables(content, body_style, code_style, list_item_style)
+                story.extend(section_flowables)
+                story.append(Spacer(1, 0.2 * inch))
+
+        # Add all sections
+        add_section('Abstract', analysis.abstract)
+        add_section('Motivation', analysis.motivation)
+        add_section('Contribution', analysis.contribution)
+        add_section('Methodology', analysis.how_does_paper_do)
+        add_section('Experiments & Results', analysis.what_does_paper_do)
+        add_section('Limitations & Challenges', analysis.limitations_challenges)
+        add_section('Future Work', analysis.future_work)
+        add_section('Conclusion', analysis.conclusion)
+
+        # Build PDF
+        doc.build(story)
+
+        return response
+
+    except Exception as e:
+        logger.error(f"Error generating PDF for analysis {analysis_id}: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Failed to generate PDF. Please try again.'
+        }, status=500)
 

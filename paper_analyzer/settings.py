@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 from pathlib import Path
 from dotenv import load_dotenv
 import os
+from .terminal import *
 load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -57,9 +58,12 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'analyzer.middleware.RedirectToAnalyzerMiddleware',
 ]
 
 ROOT_URLCONF = 'paper_analyzer.urls'
+
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 TEMPLATES = [
     {
@@ -137,3 +141,8 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/analyzer/'
 LOGOUT_REDIRECT_URL = '/login/'
+
+
+# Paper Analysis Settings
+MAX_PDF_SIZE_MB = int(os.getenv('MAX_PDF_SIZE_MB', '10'))  # Default to 10MB if not set
+MAX_TEXT_LENGTH = int(os.getenv('MAX_TEXT_LENGTH', '25000'))  # Default to 25000 if not set
