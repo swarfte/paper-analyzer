@@ -8,12 +8,19 @@
         .sidebar-transition {
             transition: all 0.3s ease-in-out;
         }
-        /* Smooth hover effects */
+        /* Smooth hover effects for all nav links - UNIFIED ANIMATION */
         nav a {
-            transition: all 0.2s ease;
+            transition: transform 0.2s ease, background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
         }
         nav a:hover {
             transform: translateX(4px);
+        }
+        nav a.nav-link {
+            transition: transform 0.2s ease, background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+        }
+        /* Icon color transition */
+        nav a .nav-icon {
+            transition: stroke 0.2s ease;
         }
     </style>
 {% endblock style %}
@@ -61,8 +68,8 @@
                         <!-- Paper Analyzer -->
                         <li>
                             <a href="/analyzer/"
-                               :class="['flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200', currentPage === 'analyzer' ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100']">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="mr-3 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" :class="currentPage === 'analyzer' ? 'stroke-white' : 'stroke-slate-500'">
+                               :class="['nav-link flex items-center px-4 py-3 rounded-xl text-sm font-medium', currentPage === 'analyzer' ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100']">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="mr-3 flex-shrink-0 nav-icon" xmlns="http://www.w3.org/2000/svg" :class="currentPage === 'analyzer' ? 'stroke-white' : 'stroke-slate-500'">
                                     <path d="M9 12H15M9 16H15M17 21H7C5.89543 21 5 20.1046 5 19V5C5 3.89543 5.89543 3 7 3H12.586C12.8512 3 13.1055 3.10536 13.2929 3.29289L18.7071 8.70711C18.8946 8.89464 19 9.14898 19 9.41421V19C19 20.1046 18.1046 21 17 21Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                 </svg>
                                 <span>Paper Analyzer</span>
@@ -72,8 +79,8 @@
                         <!-- PPT Generation -->
                         <li>
                             <a href="/generator/"
-                               :class="['flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200', currentPage === 'generator' ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100']">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="mr-3 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" :class="currentPage === 'generator' ? 'stroke-white' : 'stroke-slate-500'">
+                               :class="['nav-link flex items-center px-4 py-3 rounded-xl text-sm font-medium', currentPage === 'generator' ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100']">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="mr-3 flex-shrink-0 nav-icon" xmlns="http://www.w3.org/2000/svg" :class="currentPage === 'generator' ? 'stroke-white' : 'stroke-slate-500'">
                                     <path d="M7 21H17C18.1046 21 19 20.1046 19 19V9.41421C19 9.14898 18.8946 8.89464 18.7071 8.70711L13.2929 3.29289C13.1055 3.10536 12.8512 3 12.586 3H7C5.89543 3 5 3.89543 5 5V19C5 20.1046 5.89543 21 7 21Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                 </svg>
                                 <span>PPT Generation</span>
@@ -83,8 +90,8 @@
                         <!-- History -->
                         <li>
                             <a href="/history/"
-                               :class="['flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200', currentPage === 'history' ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100']">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="mr-3 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" :class="currentPage === 'history' ? 'stroke-white' : 'stroke-slate-500'">
+                               :class="['nav-link flex items-center px-4 py-3 rounded-xl text-sm font-medium', currentPage === 'history' ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100']">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="mr-3 flex-shrink-0 nav-icon" xmlns="http://www.w3.org/2000/svg" :class="currentPage === 'history' ? 'stroke-white' : 'stroke-slate-500'">
                                     <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                 </svg>
                                 <span>Analysis History</span>
