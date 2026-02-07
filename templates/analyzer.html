@@ -4,6 +4,14 @@
     Paper Analyzer - Paper Analyzer
 {% endblock title %}
 
+{% block extra_head %}
+<!-- PDF.js for text extraction -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+</script>
+{% endblock extra_head %}
+
 {% block style %}
 <style>
     /* Custom Markdown Styles */
@@ -151,6 +159,8 @@
              progress: 0,
              estimatedTime: 0,
              progressInterval: null,
+             wordCount: 0,
+             isCountingWords: false,
 
              getCsrfToken() {
                  const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
@@ -158,11 +168,13 @@
              },
 
              calculateEstimatedTime() {
-                 if (!this.file) return 0;
-                 const fileSizeMB = this.file.size / (1024 * 1024);
-                 const secondsPerMB = 20;
+                 if (!this.wordCount || this.wordCount === 0) return 0;
+                 // Based on experiment: 21488 words take 25 seconds
+                 // So approximately 1 second per 1000 words
+                 const secondsPer1000Words = 1;
                  const minTime = 5;
-                 return Math.max(minTime, Math.ceil(fileSizeMB * secondsPerMB));
+                 const estimatedSeconds = Math.ceil(this.wordCount / 1000 * secondsPer1000Words);
+                 return Math.max(minTime, estimatedSeconds);
              },
 
              startProgressAnimation() {
@@ -221,7 +233,37 @@
                  }
              },
 
-             selectFile(file) {
+             async countWordsInPDF(file) {
+                 this.isCountingWords = true;
+                 this.wordCount = 0;
+
+                 try {
+                     const arrayBuffer = await file.arrayBuffer();
+                     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                     let fullText = '';
+
+                     // Extract text from all pages
+                     for (let i = 1; i <= pdf.numPages; i++) {
+                         const page = await pdf.getPage(i);
+                         const textContent = await page.getTextContent();
+                         const pageText = textContent.items.map(item => item.str).join(' ');
+                         fullText += pageText + ' ';
+                     }
+
+                     // Count words (similar to MS Word count)
+                     // Split by whitespace and filter out empty strings
+                     const words = fullText.split(/\s+/).filter(word => word.length > 0);
+                     this.wordCount = words.length;
+
+                 } catch (error) {
+                     console.error('Error counting words in PDF:', error);
+                     this.wordCount = 0;
+                 } finally {
+                     this.isCountingWords = false;
+                 }
+             },
+
+             async selectFile(file) {
                  if (file.type !== 'application/pdf') {
                      this.errorMessage = 'Please upload a PDF file.';
                      return;
@@ -237,6 +279,8 @@
                  this.showPreview = false;
                  this.analysisResult = null;
                  this.hasAnalyzed = false;
+                 // Count words in the PDF
+                 await this.countWordsInPDF(file);
              },
 
              removeFile() {
@@ -248,6 +292,7 @@
                  }
                  this.analysisResult = null;
                  this.hasAnalyzed = false;
+                 this.wordCount = 0;
              },
 
              async analyzePaper() {
@@ -524,7 +569,15 @@
                             </div>
                             <div>
                                 <p class="font-medium text-slate-900 truncate max-w-xs" x-text="file?.name"></p>
-                                <p class="text-sm text-slate-500" x-text="(file?.size / 1024 / 1024).toFixed(2) + ' MB'"></p>
+                                <p class="text-sm text-slate-500">
+                                    <span x-text="(file?.size / 1024 / 1024).toFixed(2) + ' MB'"></span>
+                                    <template x-if="isCountingWords">
+                                        <span class="ml-2 text-blue-600">Counting words...</span>
+                                    </template>
+                                    <template x-if="!isCountingWords && wordCount > 0">
+                                        <span class="ml-2" x-text="'• ' + wordCount.toLocaleString() + ' words'"></span>
+                                    </template>
+                                </p>
                             </div>
                         </div>
                         <div class="flex gap-2">
@@ -618,7 +671,12 @@
                             </div>
                             <div>
                                 <p class="font-medium text-slate-900" x-text="file?.name"></p>
-                                <p class="text-sm text-slate-500" x-text="(file?.size / 1024 / 1024).toFixed(2) + ' MB'"></p>
+                                <p class="text-sm text-slate-500">
+                                    <span x-text="(file?.size / 1024 / 1024).toFixed(2) + ' MB'"></span>
+                                    <template x-if="wordCount > 0">
+                                        <span class="ml-2" x-text="'• ' + wordCount.toLocaleString() + ' words'"></span>
+                                    </template>
+                                </p>
                             </div>
                         </div>
                         <div class="text-right">
