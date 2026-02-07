@@ -15,10 +15,12 @@ import logging
 import os
 from datetime import datetime
 import markdown
+import re
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+from reportlab.platypus import ListFlowable, ListItem
 from reportlab.lib.enums import TA_LEFT, TA_JUSTIFY
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
@@ -313,7 +315,7 @@ def custom_logout(request):
 @login_required(login_url='/login/')
 def export_analysis_pdf(request, analysis_id):
     """
-    Export an analysis as a PDF file using ReportLab.
+    Export an analysis as a PDF file using ReportLab with proper markdown formatting.
     """
     analysis = get_object_or_404(PaperAnalysis, id=analysis_id, user=request.user)
 
@@ -368,6 +370,127 @@ def export_analysis_pdf(request, analysis_id):
             leading=16,
         )
 
+        code_style = ParagraphStyle(
+            'Code',
+            parent=styles['Code'],
+            fontSize=9,
+            leftIndent=20,
+            spaceAfter=12,
+            spaceBefore=6,
+            backColor=HexColor('#f3f4f6'),
+        )
+
+        def parse_markdown_to_flowables(text, body_style, code_style):
+            """Parse markdown text and convert to ReportLab flowables."""
+            if not text:
+                return []
+
+            flowables = []
+            lines = text.split('\n')
+            i = 0
+
+            while i < len(lines):
+                line = lines[i].strip()
+
+                # Empty line - add spacer
+                if not line:
+                    i += 1
+                    continue
+
+                # Code block (``` or ~~~)
+                if line.startswith('```') or line.startswith('~~~'):
+                    i += 1
+                    code_lines = []
+                    while i < len(lines) and not lines[i].strip().startswith('```') and not lines[i].strip().startswith('~~~'):
+                        code_lines.append(lines[i])
+                        i += 1
+                    code_text = '<br/>'.join(code_lines)
+                    flowables.append(Paragraph(f'<code>{code_text}</code>', code_style))
+                    i += 1
+                    continue
+
+                # Bullet list item
+                if line.startswith('- ') or line.startswith('* '):
+                    bullet_items = []
+                    while i < len(lines):
+                        curr_line = lines[i].strip()
+                        if not curr_line.startswith('- ') and not curr_line.startswith('* '):
+                            break
+                        # Remove bullet marker and convert to HTML
+                        item_text = curr_line[2:].strip()
+                        item_text = markdown_to_html_inline(item_text)
+                        bullet_items.append(ListItem(Paragraph(f'• {item_text}', body_style)))
+                        i += 1
+                    if bullet_items:
+                        flowables.append(ListFlowable(bullet_items, bulletType='bullet', leftIndent=20, spaceBefore=6, spaceAfter=6))
+                    continue
+
+                # Numbered list item
+                numbered_match = re.match(r'^(\d+)\.\s+(.*)$', line)
+                if numbered_match:
+                    num = numbered_match.group(1)
+                    item_text = numbered_match.group(2).strip()
+                    item_text = markdown_to_html_inline(item_text)
+                    flowables.append(Paragraph(f'{num}. {item_text}', body_style))
+                    i += 1
+                    continue
+
+                # Header
+                if line.startswith('###'):
+                    header_text = line[3:].strip()
+                    header_text = markdown_to_html_inline(header_text)
+                    flowables.append(Paragraph(f'<b>{header_text}</b>', body_style))
+                    flowables.append(Spacer(1, 0.1 * inch))
+                    i += 1
+                    continue
+                elif line.startswith('##'):
+                    header_text = line[2:].strip()
+                    header_text = markdown_to_html_inline(header_text)
+                    flowables.append(Paragraph(f'<b>{header_text}</b>', body_style))
+                    flowables.append(Spacer(1, 0.1 * inch))
+                    i += 1
+                    continue
+
+                # Regular paragraph - might span multiple lines
+                para_lines = []
+                while i < len(lines):
+                    curr_line = lines[i].strip()
+                    # Stop at empty line or list/header
+                    if not curr_line or curr_line.startswith('- ') or curr_line.startswith('* ') or \
+                       curr_line.startswith('#') or curr_line.startswith('```') or curr_line.startswith('~~~'):
+                        break
+                    para_lines.append(curr_line)
+                    i += 1
+
+                if para_lines:
+                    para_text = ' '.join(para_lines)
+                    para_text = markdown_to_html_inline(para_text)
+                    flowables.append(Paragraph(para_text, body_style))
+                    flowables.append(Spacer(1, 0.1 * inch))
+
+            return flowables
+
+        def markdown_to_html_inline(text):
+            """Convert inline markdown to HTML."""
+            if not text:
+                return ''
+
+            # Bold
+            text = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', text)
+            text = re.sub(r'__(.*?)__', r'<b>\1</b>', text)
+
+            # Italic
+            text = re.sub(r'\*(.*?)\*', r'<i>\1</i>', text)
+            text = re.sub(r'_(.*?)_', r'<i>\1</i>', text)
+
+            # Code
+            text = re.sub(r'`(.*?)`', r'<code>\1</code>', text)
+
+            # Links
+            text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2">\1</a>', text)
+
+            return text
+
         # Build the story (content)
         story = []
 
@@ -379,11 +502,9 @@ def export_analysis_pdf(request, analysis_id):
         def add_section(title, content):
             if content:
                 story.append(Paragraph(title, heading_style))
-                # Convert markdown to HTML and clean it for ReportLab
-                html_content = markdown.markdown(content)
-                # ReportLab's Paragraph supports a subset of HTML
-                story.append(Paragraph(html_content, body_style))
-                story.append(Spacer(1, 0.15 * inch))
+                section_flowables = parse_markdown_to_flowables(content, body_style, code_style)
+                story.extend(section_flowables)
+                story.append(Spacer(1, 0.2 * inch))
 
         # Add all sections
         add_section('Abstract', analysis.abstract)
