@@ -419,7 +419,7 @@ def export_analysis_pdf(request, analysis_id):
                         # Remove bullet marker and convert to HTML
                         item_text = curr_line[2:].strip()
                         item_text = markdown_to_html_inline(item_text)
-                        bullet_items.append(ListItem(Paragraph(f'• {item_text}', body_style)))
+                        bullet_items.append(ListItem(Paragraph(item_text, body_style)))
                         i += 1
                     if bullet_items:
                         flowables.append(ListFlowable(bullet_items, bulletType='bullet', leftIndent=20, spaceBefore=6, spaceAfter=6))
