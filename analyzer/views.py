@@ -370,6 +370,14 @@ def export_analysis_pdf(request, analysis_id):
             leading=16,
         )
 
+        # Tighter spacing for list items to match browser view
+        list_item_style = ParagraphStyle(
+            'ListItem',
+            parent=body_style,
+            spaceAfter=6,  # Tighter spacing for list items
+            leading=14,    # Slightly tighter line height
+        )
+
         code_style = ParagraphStyle(
             'Code',
             parent=styles['Code'],
@@ -380,7 +388,7 @@ def export_analysis_pdf(request, analysis_id):
             backColor=HexColor('#f3f4f6'),
         )
 
-        def parse_markdown_to_flowables(text, body_style, code_style):
+        def parse_markdown_to_flowables(text, body_style, code_style, list_item_style):
             """Parse markdown text and convert to ReportLab flowables with proper nested list support."""
             if not text:
                 return []
@@ -422,18 +430,18 @@ def export_analysis_pdf(request, analysis_id):
                     # Get the base indentation (for this item)
                     base_indent = len(line) - len(line.lstrip())
 
-                    # Add the current list item
+                    # Add the current list item with tight spacing
                     item_content = stripped
                     if is_bullet:
                         # Remove bullet marker
                         item_content = stripped[2:].strip()
                         item_content = markdown_to_html_inline(item_content)
-                        # Add bullet point
-                        flowables.append(Paragraph(f'• {item_content}', body_style))
+                        # Add bullet point with list_item_style (tighter spacing)
+                        flowables.append(Paragraph(f'• {item_content}', list_item_style))
                     else:
-                        # Keep the number
+                        # Keep the number with list_item_style
                         item_content = markdown_to_html_inline(stripped)
-                        flowables.append(Paragraph(item_content, body_style))
+                        flowables.append(Paragraph(item_content, list_item_style))
 
                     i += 1
 
@@ -453,11 +461,11 @@ def export_analysis_pdf(request, analysis_id):
                             next_is_numbered = re.match(r'^(\d+)\.\s+(.*)$', next_stripped)
 
                             if next_is_bullet or next_is_numbered:
-                                # This is a nested item - add it with proper indentation
+                                # This is a nested item - add it with proper indentation and tight spacing
                                 nested_indent = 20 + next_indent
                                 nested_style = ParagraphStyle(
                                     f'Nested{nested_indent}',
-                                    parent=body_style,
+                                    parent=list_item_style,  # Use list_item_style for consistent tight spacing
                                     leftIndent=nested_indent,
                                     spaceBefore=3,
                                     spaceAfter=3
@@ -481,8 +489,8 @@ def export_analysis_pdf(request, analysis_id):
                             # Don't increment i, let the outer loop handle it
                             break
 
-                    # Add spacing after the entire list group
-                    flowables.append(Spacer(1, 0.1 * inch))
+                    # Add a small spacer after list group (smaller than before)
+                    flowables.append(Spacer(1, 0.05 * inch))
                     continue
 
                 # Header
@@ -558,7 +566,7 @@ def export_analysis_pdf(request, analysis_id):
         def add_section(title, content):
             if content:
                 story.append(Paragraph(title, heading_style))
-                section_flowables = parse_markdown_to_flowables(content, body_style, code_style)
+                section_flowables = parse_markdown_to_flowables(content, body_style, code_style, list_item_style)
                 story.extend(section_flowables)
                 story.append(Spacer(1, 0.2 * inch))
 
