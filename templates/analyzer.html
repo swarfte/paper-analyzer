@@ -161,6 +161,7 @@
              progressInterval: null,
              wordCount: 0,
              isCountingWords: false,
+             analysisId: null,
 
              getCsrfToken() {
                  const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
@@ -328,7 +329,8 @@
                      if (data.success) {
                          this.stopProgressAnimation();
                          this.analysisResult = data.analysis;
-                         this.hasAnalyzed = true;
+                        this.analysisId = data.analysis_id;
+                        this.hasAnalyzed = true;
                      } else {
                          this.stopProgressAnimation();
                          this.errorMessage = data.error || 'Analysis failed. Please try again.';
@@ -344,6 +346,7 @@
 
              resetAnalysis() {
                  this.analysisResult = null;
+                 this.analysisId = null;
                  this.hasAnalyzed = false;
                  this.progress = 0;
                  this.stopProgressAnimation();
@@ -751,6 +754,13 @@
                             </svg>
                             Delete
                         </button>
+                        <a x-show="analysisId" :href="`/history/${analysisId}/export/pdf/`"
+                           class="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-green-50 hover:border-green-300 hover:text-green-600 transition-colors font-medium text-sm flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            Export PDF
+                        </a>
                         <a x-show="pdfPreviewUrl" :href="pdfPreviewUrl" target="_blank" rel="noopener"
                            class="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg font-medium text-sm flex items-center gap-2 shadow-md hover:shadow-lg transition-all duration-200">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

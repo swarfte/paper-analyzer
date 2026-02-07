@@ -9,10 +9,20 @@ from django.views.decorators.http import require_POST
 from django.core.paginator import Paginator
 from django.db import models
 from django.conf import settings
+from django.template.loader import render_to_string
 import json
 import logging
 import os
 from datetime import datetime
+import markdown
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+from reportlab.lib.enums import TA_LEFT, TA_JUSTIFY
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.lib.colors import HexColor
 
 from .services import analyze_paper
 from .models import PaperAnalysis
@@ -298,4 +308,102 @@ def custom_logout(request):
     """
     logout(request)
     return redirect('/login/')
+
+
+@login_required(login_url='/login/')
+def export_analysis_pdf(request, analysis_id):
+    """
+    Export an analysis as a PDF file using ReportLab.
+    """
+    analysis = get_object_or_404(PaperAnalysis, id=analysis_id, user=request.user)
+
+    try:
+        # Create filename
+        safe_title = analysis.title.replace(' ', '_').replace('/', '_').replace('\\', '_')[:100]
+        filename = f"{safe_title}_analysis_report.pdf"
+
+        # Create HttpResponse with PDF content type
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+        # Create PDF document
+        doc = SimpleDocTemplate(
+            response,
+            pagesize=A4,
+            rightMargin=72,
+            leftMargin=72,
+            topMargin=72,
+            bottomMargin=72
+        )
+
+        # Get styles
+        styles = getSampleStyleSheet()
+
+        # Custom styles
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=20,
+            textColor=HexColor('#1e3a8a'),
+            spaceAfter=20,
+            spaceBefore=20,
+            alignment=TA_LEFT,
+        )
+
+        heading_style = ParagraphStyle(
+            'CustomHeading',
+            parent=styles['Heading2'],
+            fontSize=14,
+            textColor=HexColor('#1e40af'),
+            spaceAfter=12,
+            spaceBefore=15,
+        )
+
+        body_style = ParagraphStyle(
+            'CustomBody',
+            parent=styles['BodyText'],
+            fontSize=11,
+            spaceAfter=12,
+            alignment=TA_JUSTIFY,
+            leading=16,
+        )
+
+        # Build the story (content)
+        story = []
+
+        # Add title
+        story.append(Paragraph(analysis.title, title_style))
+        story.append(Spacer(1, 0.2 * inch))
+
+        # Helper function to add section
+        def add_section(title, content):
+            if content:
+                story.append(Paragraph(title, heading_style))
+                # Convert markdown to HTML and clean it for ReportLab
+                html_content = markdown.markdown(content)
+                # ReportLab's Paragraph supports a subset of HTML
+                story.append(Paragraph(html_content, body_style))
+                story.append(Spacer(1, 0.15 * inch))
+
+        # Add all sections
+        add_section('Abstract', analysis.abstract)
+        add_section('Motivation', analysis.motivation)
+        add_section('Contribution', analysis.contribution)
+        add_section('Methodology', analysis.how_does_paper_do)
+        add_section('Experiments & Results', analysis.what_does_paper_do)
+        add_section('Limitations & Challenges', analysis.limitations_challenges)
+        add_section('Future Work', analysis.future_work)
+        add_section('Conclusion', analysis.conclusion)
+
+        # Build PDF
+        doc.build(story)
+
+        return response
+
+    except Exception as e:
+        logger.error(f"Error generating PDF for analysis {analysis_id}: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Failed to generate PDF. Please try again.'
+        }, status=500)
 

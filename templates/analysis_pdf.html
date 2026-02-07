@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+
+        body {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 11pt;
+            line-height: 1.6;
+            color: #333;
+        }
+
+        h1 {
+            color: #1e3a8a;
+            font-size: 20pt;
+            font-weight: bold;
+            margin-top: 20pt;
+            margin-bottom: 15pt;
+            border-bottom: 2px solid #3b82f6;
+            padding-bottom: 8pt;
+        }
+
+        h2 {
+            color: #1e40af;
+            font-size: 14pt;
+            font-weight: bold;
+            margin-top: 15pt;
+            margin-bottom: 10pt;
+            page-break-after: avoid;
+        }
+
+        h3 {
+            color: #1e40af;
+            font-size: 12pt;
+            font-weight: bold;
+            margin-top: 10pt;
+            margin-bottom: 8pt;
+        }
+
+        p {
+            margin-bottom: 8pt;
+            text-align: justify;
+        }
+
+        ul, ol {
+            margin-bottom: 10pt;
+            padding-left: 20pt;
+        }
+
+        li {
+            margin-bottom: 4pt;
+        }
+
+        strong {
+            font-weight: bold;
+            color: #1e3a8a;
+        }
+
+        code {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 10pt;
+            background-color: #f3f4f6;
+            padding: 2pt 4pt;
+        }
+
+        pre {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 9pt;
+            background-color: #f3f4f6;
+            padding: 10pt;
+            overflow-x: auto;
+            margin-bottom: 10pt;
+        }
+
+        blockquote {
+            margin: 10pt 0;
+            padding-left: 15pt;
+            border-left: 3pt solid #3b82f6;
+            color: #64748b;
+            font-style: italic;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10pt 0;
+            font-size: 10pt;
+        }
+
+        th, td {
+            border: 1pt solid #e2e8f0;
+            padding: 6pt 8pt;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f3f4f6;
+            font-weight: bold;
+        }
+
+        hr {
+            border: none;
+            border-top: 1pt solid #e2e8f0;
+            margin: 15pt 0;
+        }
+
+        a {
+            color: #2563eb;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <h1>{{ title }}</h1>
+
+    {% if abstract %}
+    <h2>Abstract</h2>
+    {{ abstract_html|safe }}
+    {% endif %}
+
+    {% if motivation %}
+    <h2>Motivation</h2>
+    {{ motivation_html|safe }}
+    {% endif %}
+
+    {% if contribution %}
+    <h2>Contribution</h2>
+    {{ contribution_html|safe }}
+    {% endif %}
+
+    {% if how_does_paper_do %}
+    <h2>Methodology</h2>
+    {{ how_does_paper_do_html|safe }}
+    {% endif %}
+
+    {% if what_does_paper_do %}
+    <h2>Experiments & Results</h2>
+    {{ what_does_paper_do_html|safe }}
+    {% endif %}
+
+    {% if limitations_challenges %}
+    <h2>Limitations & Challenges</h2>
+    {{ limitations_challenges_html|safe }}
+    {% endif %}
+
+    {% if future_work %}
+    <h2>Future Work</h2>
+    {{ future_work_html|safe }}
+    {% endif %}
+
+    {% if conclusion %}
+    <h2>Conclusion</h2>
+    {{ conclusion_html|safe }}
+    {% endif %}
+</body>
+</html>
