@@ -673,27 +673,35 @@
         <!-- Analysis Results: Card Grid Layout -->
         <div x-show="hasAnalyzed && !isAnalyzing" x-transition class="max-w-7xl mx-auto">
             <!-- Header with File Info and Actions -->
-            <div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                    <h1 class="text-3xl font-bold text-slate-900">Analysis Results</h1>
-                    <p class="mt-1 text-slate-600" x-text="file?.name || 'Your paper'"></p>
-                </div>
-                <div class="flex gap-3">
-                    <button @click="resetAnalysis()"
-                            class="px-4 py-2 border border-slate-300 bg-white hover:bg-slate-50 rounded-xl text-slate-700 transition-colors font-medium text-sm flex items-center gap-2 shadow-sm">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                        </svg>
-                        New Analysis
-                    </button>
-                    <button @click="showPreview = true"
-                            class="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl transition-all duration-200 font-medium text-sm flex items-center gap-2 shadow-md hover:shadow-lg">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                        </svg>
-                        View PDF
-                    </button>
+            <div class="mb-8 max-w-7xl mx-auto">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div class="flex-1">
+                        <a href="/history/" class="inline-flex items-center text-blue-600 hover:text-blue-700 mb-2 text-sm font-medium">
+                            <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                            </svg>
+                            Back to History
+                        </a>
+                        <h1 class="text-3xl font-bold text-slate-900">Analysis Results</h1>
+                        <p class="mt-1 text-slate-600" x-text="file?.name || 'Your paper'"></p>
+                    </div>
+                    <div class="flex gap-3">
+                        <button @click="resetAnalysis()"
+                                class="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-red-50 hover:border-red-300 hover:text-red-600 transition-colors font-medium text-sm flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                            Delete
+                        </button>
+                        <a x-show="pdfPreviewUrl" :href="pdfPreviewUrl" target="_blank" rel="noopener"
+                           class="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg font-medium text-sm flex items-center gap-2 shadow-md hover:shadow-lg transition-all duration-200">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                            </svg>
+                            View PDF
+                        </a>
+                    </div>
                 </div>
             </div>
 
@@ -729,8 +737,13 @@
                                     Copy
                                 </button>
                                 <button @click="openDetailModal('Abstract', analysisResult?.abstract, 'blue')"
-                                        class="flex-1 py-2 px-4 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium rounded-lg transition-colors">
-                                    View Full Detail
+                                        class="flex-1 py-2 px-3 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
+                                        title="View full detail">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                    </svg>
+                                    Detail
                                 </button>
                             </div>
                         </div>
@@ -767,8 +780,13 @@
                                     Copy
                                 </button>
                                 <button @click="openDetailModal('Motivation', analysisResult?.motivation, 'purple')"
-                                        class="flex-1 py-2 px-4 bg-purple-50 hover:bg-purple-100 text-purple-700 text-sm font-medium rounded-lg transition-colors">
-                                    View Full Detail
+                                        class="flex-1 py-2 px-3 bg-purple-50 hover:bg-purple-100 text-purple-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
+                                        title="View full detail">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                    </svg>
+                                    Detail
                                 </button>
                             </div>
                         </div>
@@ -805,8 +823,13 @@
                                     Copy
                                 </button>
                                 <button @click="openDetailModal('Contribution', analysisResult?.contribution, 'green')"
-                                        class="flex-1 py-2 px-4 bg-green-50 hover:bg-green-100 text-green-700 text-sm font-medium rounded-lg transition-colors">
-                                    View Full Detail
+                                        class="flex-1 py-2 px-3 bg-green-50 hover:bg-green-100 text-green-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
+                                        title="View full detail">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                    </svg>
+                                    Detail
                                 </button>
                             </div>
                         </div>
@@ -843,8 +866,13 @@
                                     Copy
                                 </button>
                                 <button @click="openDetailModal('Experiments & Results', analysisResult?.what_does_paper_do, 'indigo')"
-                                        class="flex-1 py-2 px-4 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-sm font-medium rounded-lg transition-colors">
-                                    View Full Detail
+                                        class="flex-1 py-2 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
+                                        title="View full detail">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                    </svg>
+                                    Detail
                                 </button>
                             </div>
                         </div>
@@ -881,9 +909,14 @@
                                     </svg>
                                     Copy
                                 </button>
-                                <button @click="openDetailModal('Methodology & Framework', analysisResult?.how_does_paper_do, 'amber')"
-                                        class="flex-1 py-2 px-4 bg-amber-50 hover:bg-amber-100 text-amber-700 text-sm font-medium rounded-lg transition-colors">
-                                    View Full Detail
+                                <button @click="openDetailModal('Methodology', analysisResult?.how_does_paper_do, 'amber')"
+                                        class="flex-1 py-2 px-3 bg-amber-50 hover:bg-amber-100 text-amber-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
+                                        title="View full detail">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                    </svg>
+                                    Detail
                                 </button>
                             </div>
                         </div>
@@ -920,8 +953,13 @@
                                     Copy
                                 </button>
                                 <button @click="openDetailModal('Limitations & Challenges', analysisResult?.limitations_challenges, 'red')"
-                                        class="flex-1 py-2 px-4 bg-red-50 hover:bg-red-100 text-red-700 text-sm font-medium rounded-lg transition-colors">
-                                    View Full Detail
+                                        class="flex-1 py-2 px-3 bg-red-50 hover:bg-red-100 text-red-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
+                                        title="View full detail">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                    </svg>
+                                    Detail
                                 </button>
                             </div>
                         </div>
@@ -958,8 +996,13 @@
                                     Copy
                                 </button>
                                 <button @click="openDetailModal('Future Work', analysisResult?.future_work, 'cyan')"
-                                        class="flex-1 py-2 px-4 bg-cyan-50 hover:bg-cyan-100 text-cyan-700 text-sm font-medium rounded-lg transition-colors">
-                                    View Full Detail
+                                        class="flex-1 py-2 px-3 bg-cyan-50 hover:bg-cyan-100 text-cyan-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
+                                        title="View full detail">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                    </svg>
+                                    Detail
                                 </button>
                             </div>
                         </div>
@@ -996,8 +1039,13 @@
                                     Copy
                                 </button>
                                 <button @click="openDetailModal('Conclusion', analysisResult?.conclusion, 'slate')"
-                                        class="flex-1 py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition-colors">
-                                    View Full Detail
+                                        class="flex-1 py-2 px-3 bg-slate-50 hover:bg-slate-100 text-slate-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
+                                        title="View full detail">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                    </svg>
+                                    Detail
                                 </button>
                             </div>
                         </div>
