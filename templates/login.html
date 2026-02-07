@@ -10,15 +10,10 @@
 
         /* Glassmorphism effect */
         .glass {
-            background: rgba(255, 255, 255, 0.7);
+            background: rgba(255, 255, 255, 0.85);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-        }
-
-        .dark .glass {
-            background: rgba(30, 41, 59, 0.7);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.5);
         }
 
         /* Floating animation */
@@ -236,10 +231,10 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                         </svg>
                     </div>
-                    <h2 class="mt-8 text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-slate-900 via-slate-700 to-slate-900 dark:from-white dark:via-slate-200 dark:to-white">
+                    <h2 class="mt-8 text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-slate-900 via-slate-700 to-slate-900">
                         Welcome back
                     </h2>
-                    <p class="mt-3 text-base text-slate-600 dark:text-slate-400">
+                    <p class="mt-3 text-base text-slate-600">
                         Sign in to continue to Paper Analyzer
                     </p>
                 </div>
@@ -252,7 +247,7 @@
                      x-transition:leave="transition ease-in duration-200"
                      x-transition:leave-start="opacity-100 transform translate-y-0"
                      x-transition:leave-end="opacity-0 transform -translate-y-2"
-                     class="mt-6 rounded-xl bg-gradient-to-r from-red-50 to-pink-50 dark:from-red-900/30 dark:to-pink-900/30 p-4 border border-red-200 dark:border-red-800/50 shadow-lg">
+                     class="mt-6 rounded-xl bg-gradient-to-r from-red-50 to-pink-50 p-4 border border-red-200 shadow-lg">
                     <div class="flex">
                         <div class="flex-shrink-0">
                             <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
@@ -260,7 +255,7 @@
                             </svg>
                         </div>
                         <div class="ml-3 flex-1">
-                            <p class="text-sm font-medium text-red-800 dark:text-red-200" x-text="errorMessage"></p>
+                            <p class="text-sm font-medium text-red-800" x-text="errorMessage"></p>
                         </div>
                     </div>
                 </div>
@@ -271,7 +266,7 @@
                     <div class="space-y-5">
                         <!-- Username Field -->
                         <div class="fade-in-up delay-100">
-                            <label for="username" class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                            <label for="username" class="block text-sm font-semibold text-slate-700 mb-2">
                                 Username or Email
                             </label>
                             <div class="relative group">
@@ -284,7 +279,7 @@
                                     id="username"
                                     name="username"
                                     x-model="username"
-                                    :class="['input-field block w-full pl-11 pr-4 py-3.5 border rounded-xl leading-5 bg-white/50 dark:bg-slate-800/50 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 sm:text-sm', errors.username ? 'border-red-300 dark:border-red-600 focus:ring-red-500/50 focus:border-red-500' : 'border-slate-200 dark:border-slate-700']"
+                                    :class="['input-field block w-full pl-11 pr-4 py-3.5 border rounded-xl leading-5 bg-white/80 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 sm:text-sm', errors.username ? 'border-red-300 focus:ring-red-500/50 focus:border-red-500' : 'border-slate-200']"
                                     :disabled="isLoading"
                                     placeholder="Enter your username or email"
                                     autocomplete="username"
@@ -292,7 +287,7 @@
                             </div>
                             <p x-show="errors.username"
                                x-transition
-                               class="mt-2 text-sm text-red-600 dark:text-red-400 font-medium flex items-center gap-1">
+                               class="mt-2 text-sm text-red-600 font-medium flex items-center gap-1">
                                 <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
                                 </svg>
@@ -302,7 +297,7 @@
 
                         <!-- Password Field -->
                         <div class="fade-in-up delay-200">
-                            <label for="password" class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                            <label for="password" class="block text-sm font-semibold text-slate-700 mb-2">
                                 Password
                             </label>
                             <div class="relative group">
@@ -316,7 +311,7 @@
                                     id="password"
                                     name="password"
                                     x-model="password"
-                                    :class="['input-field block w-full pl-11 pr-12 py-3.5 border rounded-xl leading-5 bg-white/50 dark:bg-slate-800/50 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 sm:text-sm', errors.password ? 'border-red-300 dark:border-red-600 focus:ring-red-500/50 focus:border-red-500' : 'border-slate-200 dark:border-slate-700']"
+                                    :class="['input-field block w-full pl-11 pr-12 py-3.5 border rounded-xl leading-5 bg-white/80 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 sm:text-sm', errors.password ? 'border-red-300 focus:ring-red-500/50 focus:border-red-500' : 'border-slate-200']"
                                     :disabled="isLoading"
                                     placeholder="Enter your password"
                                     autocomplete="current-password"
@@ -325,7 +320,7 @@
                                     <button
                                         type="button"
                                         @click="showPassword = !showPassword"
-                                        class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 focus:outline-none transition-colors duration-200 p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700/50"
+                                        class="text-slate-400 hover:text-slate-600 focus:outline-none transition-colors duration-200 p-1 rounded-lg hover:bg-slate-100"
                                     >
                                         <svg x-show="!showPassword" class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: none;">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
@@ -339,7 +334,7 @@
                             </div>
                             <p x-show="errors.password"
                                x-transition
-                               class="mt-2 text-sm text-red-600 dark:text-red-400 font-medium flex items-center gap-1">
+                               class="mt-2 text-sm text-red-600 font-medium flex items-center gap-1">
                                 <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
                                 </svg>
@@ -356,7 +351,7 @@
                                     x-model="remember"
                                     class="checkbox-modern h-4 w-4 text-blue-600 focus:ring-blue-500 focus:ring-2 border-slate-300 rounded cursor-pointer"
                                 >
-                                <label for="remember-me" class="ml-2.5 block text-sm text-slate-700 dark:text-slate-300 cursor-pointer select-none">
+                                <label for="remember-me" class="ml-2.5 block text-sm text-slate-700 cursor-pointer select-none">
                                     Remember me
                                 </label>
                             </div>
@@ -386,7 +381,7 @@
                 </form>
 
                 <!-- Footer Info -->
-                <p class="mt-6 text-center text-xs text-slate-500 dark:text-slate-400">
+                <p class="mt-6 text-center text-xs text-slate-500">
                     By signing in, you agree to our
                     <a href="#" class="font-medium text-blue-600 hover:text-blue-500 transition-colors">Terms of Service</a>
                     and
