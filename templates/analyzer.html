@@ -172,7 +172,7 @@
                  // Based on experiment: 21488 words take 25 seconds
                  // So approximately 1 second per 1000 words
                  const secondsPer1000Words = 1;
-                 const minTime = 5;
+                 const minTime = 20;
                  const estimatedSeconds = Math.ceil(this.wordCount / 1000 * secondsPer1000Words);
                  return Math.max(minTime, estimatedSeconds);
              },
