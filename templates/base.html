@@ -1,45 +1,52 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
 
     <title>{% block title %} Base {% endblock title %}</title>
-    <meta name="description" content="" />
+    <meta name="description" content="Paper Analyzer - AI-powered research paper analysis tool" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/static/icons/favicon.svg" />
+
+    <!-- Tailwind CSS v4 -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+    <!-- Alpine.js -->
     <script
       defer
       src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
     ></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+
+    <!-- HTMX -->
     <script
       src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js"
       integrity="sha384-/TgkGk7p307TH7EXJDuUlgG3Ce1UVolAOFopFekQkkXihi5u/6OCvVKyz1W+idaz"
       crossorigin="anonymous"
     ></script>
+
+    <!-- Marked.js for Markdown rendering -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
-    {% block style %} 
-    {% endblock style %} 
-    
-    {% block extra_head %} 
+    {% block style %}
+    {% endblock style %}
+
+    {% block extra_head %}
     {% endblock extra_head %}
 
   </head>
-  <body>
-    <div id="app">
-        {% block content %} 
+  <body class="bg-gradient-to-br from-slate-50 via-white to-blue-50 min-h-screen">
+    <div id="app" class="min-h-screen">
+        {% block content %}
         {% endblock content %}
     </div>
 
-    {% block extra_body %} 
-    {% endblock extra_body %} 
-    
-    {% block script %} 
+    {% block extra_body %}
+    {% endblock extra_body %}
+
+    {% block script %}
     {% endblock script %}
   </body>
 </html>
