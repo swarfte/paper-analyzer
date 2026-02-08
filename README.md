@@ -28,9 +28,13 @@ Paper Analyzer helps researchers, students, and academics quickly understand and
   - Future Work
   - Conclusion
 
+- **Full Scrollable Report View**: Analysis results displayed in an easy-to-read document format with markdown rendering
+- **PDF Export**: Export complete analysis reports to professionally formatted PDF files
+- **Collapsible Sidebar**: Space-saving sidebar with toggle button and smart tooltips
 - **Analysis History**: View all your previously analyzed papers
 - **Search Functionality**: Quickly find papers by title, filename, or abstract
-- **Detailed View**: Examine complete analysis results in an organized card layout
+- **Progress Tracking**: Real-time progress bar and ETA during analysis
+- **Copy to Clipboard**: Quick copy buttons for each analysis section
 - **User Authentication**: Secure login system for personalized experience
 - **Responsive Design**: Modern UI with Vue 3, Tailwind CSS, and HTMX
 
@@ -43,11 +47,11 @@ Paper Analyzer helps researchers, students, and academics quickly understand and
 
 ## Demo
 
-### Analysis Results
+### Analysis Results (Full Report View)
 ![Analysis Result](demo/paper-analyzer/result.jpg)
 
-### Analysis Detail
-![Analysis Detail](demo/paper-analyzer/detail.jpg)
+### PDF Export
+![PDF Export](demo/paper-analyzer/export_pdf.jpg)
 
 ## Tech Stack
 
@@ -182,15 +186,13 @@ OPENROUTER_REFERER=http://localhost:8000
    - Click "Choose File" or drag and drop
    - Select your research paper (PDF format, max 10MB)
 4. **Click "Analyze Paper"** and wait for the AI to process
-5. **View Results** displayed in organized cards:
-   - Abstract
-   - Motivation
-   - Contribution
-   - What Does Paper Do
-   - How Does Paper Do
-   - Limitations & Challenges
-   - Future Work
-   - Conclusion
+   - Progress bar shows real-time analysis progress
+   - Estimated time remaining is displayed
+5. **View Results** displayed in a full scrollable report:
+   - All sections visible at once (no need to click cards)
+   - Markdown-formatted content for better readability
+   - Copy buttons for each section
+   - Export to PDF, view original PDF, or delete analysis
 
 ### Viewing Analysis History
 
@@ -201,9 +203,11 @@ OPENROUTER_REFERER=http://localhost:8000
 
 ### Managing Analyses
 
-- **View Details**: Click on any analysis card
-- **Delete**: Remove unwanted analyses (button in detail view)
-- **Download**: Access original PDF files
+- **View Full Report**: All sections displayed in scrollable document format
+- **Export to PDF**: Download complete analysis as formatted PDF
+- **View Original**: Open the original uploaded PDF
+- **Delete**: Remove unwanted analyses
+- **Copy Sections**: Quick copy buttons for each analysis section
 
 ### Admin Panel
 
@@ -262,7 +266,11 @@ uv run manage.py collectstatic
 - [x] PDF upload and parsing
 - [x] AI-powered paper analysis
 - [x] Analysis history with search
-- [x] Detailed analysis view
+- [x] Detailed analysis view (full scrollable report)
+- [x] PDF export functionality
+- [x] Progress tracking and ETA
+- [x] Collapsible sidebar
+- [x] Copy to clipboard for sections
 - [ ] PPT generation from analysis
 - [ ] Custom slide templates
 - [ ] Export to PPTX/PDF
@@ -293,6 +301,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [Vue.js](https://vuejs.org/) - Progressive JavaScript framework
 - [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS framework
 - [HTMX](https://htmx.org/) - High power tools for HTML
+- [Marked.js](https://marked.js.org/) - Markdown parser for PDF exports
 
 ## Support
 
@@ -304,7 +313,18 @@ If you encounter any issues or have questions:
 
 ## Changelog
 
-### Version 0.1.0 (Current)
+### Version 0.2.0 (Current)
+- ✨ **New**: Full scrollable report view for analysis results
+- ✨ **New**: PDF export with markdown parsing support
+- ✨ **New**: Collapsible sidebar with toggle button and tooltips
+- ✨ **New**: Progress tracking with ETA during analysis
+- ✨ **New**: Copy to clipboard buttons for each section
+- 🎨 **Improved**: Vertical action buttons with color coding (green/red/blue)
+- 🎨 **Improved**: Better markdown rendering in reports
+- 🐛 **Fixed**: Horizontal scrollbar in collapsed sidebar
+- 🔧 **Refactored**: Analysis results from card layout to document format
+
+### Version 0.1.0
 - Initial release
 - Paper analysis functionality
 - User authentication
