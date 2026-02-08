@@ -28,11 +28,101 @@
   nav a .nav-icon {
     transition: stroke 0.2s ease;
   }
+  /* Toggle button hover */
+  .sidebar-toggle {
+    transition: all 0.2s ease;
+  }
+  .sidebar-toggle:hover {
+    transform: scale(1.1);
+  }
+  /* Hide text in collapsed sidebar */
+  .sidebar-collapsed .nav-text,
+  .sidebar-collapsed .user-info-text,
+  .sidebar-collapsed .logo-text {
+    display: none;
+  }
+  .sidebar-collapsed .nav-link {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .sidebar-collapsed .nav-link svg {
+    margin-right: 0;
+  }
+  .sidebar-collapsed .user-info {
+    justify-content: center;
+  }
+  .sidebar-collapsed .user-info .ml-3 {
+    margin-left: 0;
+  }
+  .sidebar-collapsed .logo {
+    justify-content: center;
+  }
+  .sidebar-collapsed .logo .mr-3 {
+    margin-right: 0;
+  }
+  .sidebar-collapsed ul {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  /* Custom tooltip for collapsed sidebar */
+  .sidebar-collapsed .nav-link {
+    position: relative;
+  }
+  .sidebar-collapsed .nav-link::before {
+    content: attr(title);
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-left: 12px;
+    padding: 8px 12px;
+    background: #1e293b;
+    color: white;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    border-radius: 8px;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    pointer-events: none;
+  }
+  .sidebar-collapsed .nav-link:hover::before {
+    opacity: 1;
+    visibility: visible;
+  }
+  .sidebar-collapsed .nav-link:hover::after {
+    content: '';
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-left: 6px;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 6px 0 6px 6px;
+    border-color: transparent transparent transparent #1e293b;
+    z-index: 1000;
+    opacity: 1;
+    visibility: visible;
+  }
+  .sidebar-collapsed .nav-link:hover {
+    background-color: #f1f5f9;
+  }
+  .sidebar-collapsed .nav-link.nav-active {
+    background-color: #dbeafe;
+  }
 </style>
 {% endblock style %} {% block content %}
 <div
   x-data="{
         currentPage: 'analyzer',
+        sidebarCollapsed: false,
         init() {
             const path = window.location.pathname;
             if (path === '/analyzer/' || path === '/') {
@@ -42,21 +132,54 @@
             } else if (path.includes('/history/')) {
                 this.currentPage = 'history';
             }
+            // Load collapsed state from localStorage
+            const savedState = localStorage.getItem('sidebarCollapsed');
+            if (savedState !== null) {
+                this.sidebarCollapsed = savedState === 'true';
+            }
+        },
+        toggleSidebar() {
+            this.sidebarCollapsed = !this.sidebarCollapsed;
+            // Save to localStorage
+            localStorage.setItem('sidebarCollapsed', this.sidebarCollapsed);
+        },
+        get sidebarWidth() {
+            return this.sidebarCollapsed ? 'w-20' : 'w-72';
         }
     }"
 >
   <div class="flex h-screen overflow-hidden">
     <!-- Sidebar -->
     <aside
-      class="sidebar-transition w-72 bg-white/80 backdrop-blur-lg border-r border-slate-200/60 flex flex-col shadow-xl"
+      :class="['sidebar-transition relative bg-white/80 backdrop-blur-lg border-r border-slate-200/60 flex flex-col shadow-xl', sidebarWidth, sidebarCollapsed ? 'sidebar-collapsed' : '']"
     >
+      <!-- Collapse/Expand Toggle Button -->
+      <button
+        @click="toggleSidebar()"
+        class="sidebar-toggle absolute -right-3 top-24 z-50 bg-white border-2 border-slate-200 hover:border-blue-400 text-slate-500 hover:text-blue-600 rounded-full p-1 shadow-md flex items-center justify-center transition-all duration-200 hover:scale-110"
+        :title="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path x-show="!sidebarCollapsed" d="M11 19l-7-7 7-7M21 19l-7-7 7-7"></path>
+          <path x-show="sidebarCollapsed" d="M13 5l7 7-7 7M5 5l7 7-7 7"></path>
+        </svg>
+      </button>
       <!-- Logo -->
       <div
-        class="flex items-center justify-center h-20 border-b border-slate-200/60 bg-gradient-to-r from-blue-50/50 to-indigo-50/50"
+        class="logo flex items-center justify-center h-20 border-b border-slate-200/60 bg-gradient-to-r from-blue-50/50 to-indigo-50/50"
       >
         <div class="flex items-center">
           <div
-            class="h-10 w-10 mr-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg"
+            class="h-10 w-10 mr-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -90,7 +213,7 @@
             </svg>
           </div>
           <span
-            class="text-xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent"
+            class="logo-text text-xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent"
             >Paper Analyzer</span
           >
         </div>
@@ -103,7 +226,8 @@
           <li>
             <a
               href="/analyzer/"
-              :class="['nav-link flex items-center px-4 py-3 rounded-xl text-sm font-medium', currentPage === 'analyzer' ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100']"
+              title="Paper Analyzer"
+              :class="['nav-link relative flex items-center px-4 py-3 rounded-xl text-sm font-medium', currentPage === 'analyzer' ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100']"
             >
               <svg
                 width="20"
@@ -121,7 +245,7 @@
                   stroke-linejoin="round"
                 />
               </svg>
-              <span>Paper Analyzer</span>
+              <span class="nav-text">Paper Analyzer</span>
             </a>
           </li>
 
@@ -129,7 +253,8 @@
           <li>
             <a
               href="/generator/"
-              :class="['nav-link flex items-center px-4 py-3 rounded-xl text-sm font-medium', currentPage === 'generator' ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100']"
+              title="PPT Generation"
+              :class="['nav-link relative flex items-center px-4 py-3 rounded-xl text-sm font-medium', currentPage === 'generator' ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100']"
             >
               <svg
                 width="20"
@@ -147,7 +272,7 @@
                   stroke-linejoin="round"
                 />
               </svg>
-              <span>PPT Generation</span>
+              <span class="nav-text">PPT Generation</span>
             </a>
           </li>
         </ul>
@@ -155,23 +280,28 @@
 
       <!-- User Info -->
       <div
-        class="border-t border-slate-200/60 p-5 bg-gradient-to-r from-slate-50/50 to-blue-50/30"
+        class="user-info border-t border-slate-200/60 bg-gradient-to-r from-slate-50/50 to-blue-50/30"
+        :class="sidebarCollapsed ? 'p-4 flex justify-center' : 'p-5'"
       >
         <div class="flex items-center">
           <div class="flex-shrink-0">
             <div
               class="h-12 w-12 rounded-full bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-lg ring-3 ring-white shadow-lg"
+              :title="sidebarCollapsed ? '{{ user.username }} (Click to logout)' : ''"
+              @click="sidebarCollapsed ? window.location.href = '/logout/' : null"
+              :class="sidebarCollapsed ? 'cursor-pointer hover:scale-105 transition-transform' : ''"
             >
               <span>{{ user.username|first|upper }}</span>
             </div>
           </div>
-          <div class="ml-3 flex-1">
+          <div class="ml-3 flex-1 user-info-text">
             <p class="text-sm font-semibold text-slate-800">
               {{ user.username }}
             </p>
             <p class="text-xs text-slate-500">Logged in</p>
           </div>
           <a
+            x-show="!sidebarCollapsed"
             href="/logout/"
             class="ml-2 p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all duration-200 flex items-center justify-center"
             title="Logout"
