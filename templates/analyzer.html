@@ -144,10 +144,6 @@
              errorMessage: '',
              showPreview: false,
              hasAnalyzed: false,
-             showDetailModal: false,
-             currentDetail: null,
-             currentDetailTitle: '',
-             currentDetailColor: '',
              showHistoryModal: false,
              historyData: [],
              historyPage: 1,
@@ -357,43 +353,12 @@
                  }
              },
 
-             truncateText(text, maxLength = 150) {
-                 if (!text) return '';
-                 const plainText = text
-                     .replace(/#{1,6}\s/g, '')
-                     .replace(/\*\*/g, '')
-                     .replace(/\*/g, '')
-                     .replace(/-/g, '')
-                     .replace(/\n+/g, ' ')
-                     .trim();
-                 if (plainText.length <= maxLength) return plainText;
-                 return plainText.substring(0, maxLength) + '...';
-             },
-
              renderMarkdown(text) {
                  if (!text) return '';
                  if (typeof marked !== 'undefined') {
                      return marked.parse(text);
                  }
                  return text;
-             },
-
-             get renderedDetail() {
-                 return this.renderMarkdown(this.currentDetail);
-             },
-
-             openDetailModal(title, content, color) {
-                 this.currentDetailTitle = title;
-                 this.currentDetail = content;
-                 this.currentDetailColor = color;
-                 this.showDetailModal = true;
-             },
-
-             closeDetailModal() {
-                 this.showDetailModal = false;
-                 this.currentDetail = null;
-                 this.currentDetailTitle = '';
-                 this.currentDetailColor = '';
              },
 
              async loadHistory(page = 1) {
@@ -773,352 +738,208 @@
                 </div>
             </div>
 
-            <!-- Analysis Cards Grid -->
-            <div x-show="analysisResult && !isAnalyzing" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                <!-- Abstract Card -->
-                <template x-if="analysisResult?.abstract">
-                    <div class="bg-white/90 backdrop-blur-lg rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow duration-200 h-[280px] flex flex-col">
-                        <div class="px-5 py-4 flex-shrink-0 bg-gradient-to-r from-blue-50 to-blue-100/50">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-lg bg-blue-500 flex items-center justify-center flex-shrink-0 shadow-md">
-                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                    </svg>
-                                </div>
-                                <div class="text-left">
-                                    <h3 class="font-semibold text-blue-900">Abstract</h3>
-                                    <p class="text-xs text-blue-600 mt-0.5">Paper summary</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="px-5 py-4 flex-1 overflow-hidden">
-                            <p class="text-sm text-slate-700 leading-relaxed line-clamp-6" x-text="truncateText(analysisResult?.abstract, 180)"></p>
-                        </div>
-                        <div class="px-5 py-3 border-t border-slate-200 flex-shrink-0">
-                            <div class="flex gap-2">
-                                <button @click="copyToClipboard(analysisResult?.abstract || '', 'Abstract')"
-                                        class="flex-1 py-2 px-3 bg-slate-50 hover:bg-slate-100 text-slate-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
-                                        title="Copy Abstract">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                                    </svg>
-                                    Copy
-                                </button>
-                                <button @click="openDetailModal('Abstract', analysisResult?.abstract, 'blue')"
-                                        class="flex-1 py-2 px-3 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
-                                        title="View full detail">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                                    </svg>
-                                    Detail
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </template>
+            <!-- Full Scrollable Report -->
+            <div x-show="analysisResult && !isAnalyzing" class="max-w-4xl mx-auto">
+                <article class="bg-white/90 backdrop-blur-lg rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <!-- Document Content -->
+                    <div class="p-8 md:p-12 prose prose-slate prose-lg max-w-none">
+                        <!-- Title -->
+                        <h1 class="text-3xl md:text-4xl font-bold text-slate-900 mb-8 border-b border-slate-200 pb-4" x-text="file?.name || 'Analysis Results'"></h1>
 
-                <!-- Motivation Card -->
-                <template x-if="analysisResult?.motivation">
-                    <div class="bg-white/90 backdrop-blur-lg rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow duration-200 h-[280px] flex flex-col">
-                        <div class="px-5 py-4 flex-shrink-0 bg-gradient-to-r from-purple-50 to-purple-100/50">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-lg bg-purple-500 flex items-center justify-center flex-shrink-0 shadow-md">
-                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
-                                    </svg>
+                        <!-- Abstract Section -->
+                        <template x-if="analysisResult?.abstract">
+                            <section class="mb-10">
+                                <div class="flex items-center gap-3 mb-4">
+                                    <div class="w-10 h-10 rounded-lg bg-blue-500 flex items-center justify-center flex-shrink-0 shadow-md">
+                                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                        </svg>
+                                    </div>
+                                    <h2 class="text-2xl font-bold text-blue-900">Abstract</h2>
                                 </div>
-                                <div class="text-left">
-                                    <h3 class="font-semibold text-purple-900">Motivation</h3>
-                                    <p class="text-xs text-purple-600 mt-0.5">Why this research</p>
+                                <div class="pl-13">
+                                    <div x-html="renderMarkdown(analysisResult?.abstract)"></div>
+                                    <button @click="copyToClipboard(analysisResult?.abstract || '', 'Abstract')"
+                                            class="mt-4 px-4 py-2 text-sm bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg transition-colors flex items-center gap-2 font-medium">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                        </svg>
+                                        Copy Abstract
+                                    </button>
                                 </div>
-                            </div>
-                        </div>
-                        <div class="px-5 py-4 flex-1 overflow-hidden">
-                            <p class="text-sm text-slate-700 leading-relaxed line-clamp-6" x-text="truncateText(analysisResult?.motivation, 180)"></p>
-                        </div>
-                        <div class="px-5 py-3 border-t border-slate-200 flex-shrink-0">
-                            <div class="flex gap-2">
-                                <button @click="copyToClipboard(analysisResult?.motivation || '', 'Motivation')"
-                                        class="flex-1 py-2 px-3 bg-slate-50 hover:bg-slate-100 text-slate-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
-                                        title="Copy Motivation">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                                    </svg>
-                                    Copy
-                                </button>
-                                <button @click="openDetailModal('Motivation', analysisResult?.motivation, 'purple')"
-                                        class="flex-1 py-2 px-3 bg-purple-50 hover:bg-purple-100 text-purple-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
-                                        title="View full detail">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                                    </svg>
-                                    Detail
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </template>
+                            </section>
+                        </template>
 
-                <!-- Contribution Card -->
-                <template x-if="analysisResult?.contribution">
-                    <div class="bg-white/90 backdrop-blur-lg rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow duration-200 h-[280px] flex flex-col">
-                        <div class="px-5 py-4 flex-shrink-0 bg-gradient-to-r from-green-50 to-green-100/50">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-lg bg-green-500 flex items-center justify-center flex-shrink-0 shadow-md">
-                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
-                                    </svg>
+                        <!-- Motivation Section -->
+                        <template x-if="analysisResult?.motivation">
+                            <section class="mb-10">
+                                <div class="flex items-center gap-3 mb-4">
+                                    <div class="w-10 h-10 rounded-lg bg-purple-500 flex items-center justify-center flex-shrink-0 shadow-md">
+                                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                                        </svg>
+                                    </div>
+                                    <h2 class="text-2xl font-bold text-purple-900">Motivation</h2>
                                 </div>
-                                <div class="text-left">
-                                    <h3 class="font-semibold text-green-900">Contribution</h3>
-                                    <p class="text-xs text-green-600 mt-0.5">Key innovations</p>
+                                <div class="pl-13">
+                                    <div x-html="renderMarkdown(analysisResult?.motivation)"></div>
+                                    <button @click="copyToClipboard(analysisResult?.motivation || '', 'Motivation')"
+                                            class="mt-4 px-4 py-2 text-sm bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg transition-colors flex items-center gap-2 font-medium">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                        </svg>
+                                        Copy Motivation
+                                    </button>
                                 </div>
-                            </div>
-                        </div>
-                        <div class="px-5 py-4 flex-1 overflow-hidden">
-                            <p class="text-sm text-slate-700 leading-relaxed line-clamp-6" x-text="truncateText(analysisResult?.contribution, 180)"></p>
-                        </div>
-                        <div class="px-5 py-3 border-t border-slate-200 flex-shrink-0">
-                            <div class="flex gap-2">
-                                <button @click="copyToClipboard(analysisResult?.contribution || '', 'Contribution')"
-                                        class="flex-1 py-2 px-3 bg-slate-50 hover:bg-slate-100 text-slate-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
-                                        title="Copy Contribution">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                                    </svg>
-                                    Copy
-                                </button>
-                                <button @click="openDetailModal('Contribution', analysisResult?.contribution, 'green')"
-                                        class="flex-1 py-2 px-3 bg-green-50 hover:bg-green-100 text-green-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
-                                        title="View full detail">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                                    </svg>
-                                    Detail
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </template>
+                            </section>
+                        </template>
 
-                <!-- How (Methodology) Card -->
-                <template x-if="analysisResult?.how_does_paper_do">
-                    <div class="bg-white/90 backdrop-blur-lg rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow duration-200 h-[280px] flex flex-col">
-                        <div class="px-5 py-4 flex-shrink-0 bg-gradient-to-r from-amber-50 to-amber-100/50">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-lg bg-amber-500 flex items-center justify-center flex-shrink-0 shadow-md">
-                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                    </svg>
+                        <!-- Contribution Section -->
+                        <template x-if="analysisResult?.contribution">
+                            <section class="mb-10">
+                                <div class="flex items-center gap-3 mb-4">
+                                    <div class="w-10 h-10 rounded-lg bg-green-500 flex items-center justify-center flex-shrink-0 shadow-md">
+                                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
+                                        </svg>
+                                    </div>
+                                    <h2 class="text-2xl font-bold text-green-900">Contribution</h2>
                                 </div>
-                                <div class="text-left">
-                                    <h3 class="font-semibold text-amber-900">Methodology</h3>
-                                    <p class="text-xs text-amber-600 mt-0.5">How it works</p>
+                                <div class="pl-13">
+                                    <div x-html="renderMarkdown(analysisResult?.contribution)"></div>
+                                    <button @click="copyToClipboard(analysisResult?.contribution || '', 'Contribution')"
+                                            class="mt-4 px-4 py-2 text-sm bg-green-50 hover:bg-green-100 text-green-700 rounded-lg transition-colors flex items-center gap-2 font-medium">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                        </svg>
+                                        Copy Contribution
+                                    </button>
                                 </div>
-                            </div>
-                        </div>
-                        <div class="px-5 py-4 flex-1 overflow-hidden">
-                            <p class="text-sm text-slate-700 leading-relaxed line-clamp-6" x-text="truncateText(analysisResult?.how_does_paper_do, 180)"></p>
-                        </div>
-                        <div class="px-5 py-3 border-t border-slate-200 flex-shrink-0">
-                            <div class="flex gap-2">
-                                <button @click="copyToClipboard(analysisResult?.how_does_paper_do || '', 'Methodology')"
-                                        class="flex-1 py-2 px-3 bg-slate-50 hover:bg-slate-100 text-slate-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
-                                        title="Copy Methodology">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                                    </svg>
-                                    Copy
-                                </button>
-                                <button @click="openDetailModal('Methodology', analysisResult?.how_does_paper_do, 'amber')"
-                                        class="flex-1 py-2 px-3 bg-amber-50 hover:bg-amber-100 text-amber-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
-                                        title="View full detail">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                                    </svg>
-                                    Detail
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </template>
+                            </section>
+                        </template>
 
-                <!-- What (Experiments) Card -->
-                <template x-if="analysisResult?.what_does_paper_do">
-                    <div class="bg-white/90 backdrop-blur-lg rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow duration-200 h-[280px] flex flex-col">
-                        <div class="px-5 py-4 flex-shrink-0 bg-gradient-to-r from-indigo-50 to-indigo-100/50">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-lg bg-indigo-500 flex items-center justify-center flex-shrink-0 shadow-md">
-                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path>
-                                    </svg>
+                        <!-- Methodology Section -->
+                        <template x-if="analysisResult?.how_does_paper_do">
+                            <section class="mb-10">
+                                <div class="flex items-center gap-3 mb-4">
+                                    <div class="w-10 h-10 rounded-lg bg-amber-500 flex items-center justify-center flex-shrink-0 shadow-md">
+                                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        </svg>
+                                    </div>
+                                    <h2 class="text-2xl font-bold text-amber-900">Methodology</h2>
                                 </div>
-                                <div class="text-left">
-                                    <h3 class="font-semibold text-indigo-900">Experiments</h3>
-                                    <p class="text-xs text-indigo-600 mt-0.5">What was tested</p>
+                                <div class="pl-13">
+                                    <div x-html="renderMarkdown(analysisResult?.how_does_paper_do)"></div>
+                                    <button @click="copyToClipboard(analysisResult?.how_does_paper_do || '', 'Methodology')"
+                                            class="mt-4 px-4 py-2 text-sm bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg transition-colors flex items-center gap-2 font-medium">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                        </svg>
+                                        Copy Methodology
+                                    </button>
                                 </div>
-                            </div>
-                        </div>
-                        <div class="px-5 py-4 flex-1 overflow-hidden">
-                            <p class="text-sm text-slate-700 leading-relaxed line-clamp-6" x-text="truncateText(analysisResult?.what_does_paper_do, 180)"></p>
-                        </div>
-                        <div class="px-5 py-3 border-t border-slate-200 flex-shrink-0">
-                            <div class="flex gap-2">
-                                <button @click="copyToClipboard(analysisResult?.what_does_paper_do || '', 'Experiments')"
-                                        class="flex-1 py-2 px-3 bg-slate-50 hover:bg-slate-100 text-slate-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
-                                        title="Copy Experiments">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                                    </svg>
-                                    Copy
-                                </button>
-                                <button @click="openDetailModal('Experiments & Results', analysisResult?.what_does_paper_do, 'indigo')"
-                                        class="flex-1 py-2 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
-                                        title="View full detail">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                                    </svg>
-                                    Detail
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </template>
+                            </section>
+                        </template>
 
-                <!-- Limitations Card -->
-                <template x-if="analysisResult?.limitations_challenges">
-                    <div class="bg-white/90 backdrop-blur-lg rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow duration-200 h-[280px] flex flex-col">
-                        <div class="px-5 py-4 flex-shrink-0 bg-gradient-to-r from-red-50 to-red-100/50">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-lg bg-red-500 flex items-center justify-center flex-shrink-0 shadow-md">
-                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-                                    </svg>
+                        <!-- Experiments & Results Section -->
+                        <template x-if="analysisResult?.what_does_paper_do">
+                            <section class="mb-10">
+                                <div class="flex items-center gap-3 mb-4">
+                                    <div class="w-10 h-10 rounded-lg bg-indigo-500 flex items-center justify-center flex-shrink-0 shadow-md">
+                                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path>
+                                        </svg>
+                                    </div>
+                                    <h2 class="text-2xl font-bold text-indigo-900">Experiments & Results</h2>
                                 </div>
-                                <div class="text-left">
-                                    <h3 class="font-semibold text-red-900">Limitations</h3>
-                                    <p class="text-xs text-red-600 mt-0.5">Challenges & constraints</p>
+                                <div class="pl-13">
+                                    <div x-html="renderMarkdown(analysisResult?.what_does_paper_do)"></div>
+                                    <button @click="copyToClipboard(analysisResult?.what_does_paper_do || '', 'Experiments & Results')"
+                                            class="mt-4 px-4 py-2 text-sm bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg transition-colors flex items-center gap-2 font-medium">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                        </svg>
+                                        Copy Experiments
+                                    </button>
                                 </div>
-                            </div>
-                        </div>
-                        <div class="px-5 py-4 flex-1 overflow-hidden">
-                            <p class="text-sm text-slate-700 leading-relaxed line-clamp-6" x-text="truncateText(analysisResult?.limitations_challenges, 180)"></p>
-                        </div>
-                        <div class="px-5 py-3 border-t border-slate-200 flex-shrink-0">
-                            <div class="flex gap-2">
-                                <button @click="copyToClipboard(analysisResult?.limitations_challenges || '', 'Limitations')"
-                                        class="flex-1 py-2 px-3 bg-slate-50 hover:bg-slate-100 text-slate-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
-                                        title="Copy Limitations">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                                    </svg>
-                                    Copy
-                                </button>
-                                <button @click="openDetailModal('Limitations & Challenges', analysisResult?.limitations_challenges, 'red')"
-                                        class="flex-1 py-2 px-3 bg-red-50 hover:bg-red-100 text-red-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
-                                        title="View full detail">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                                    </svg>
-                                    Detail
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </template>
+                            </section>
+                        </template>
 
-                <!-- Future Work Card -->
-                <template x-if="analysisResult?.future_work">
-                    <div class="bg-white/90 backdrop-blur-lg rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow duration-200 h-[280px] flex flex-col">
-                        <div class="px-5 py-4 flex-shrink-0 bg-gradient-to-r from-cyan-50 to-cyan-100/50">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-lg bg-cyan-500 flex items-center justify-center flex-shrink-0 shadow-md">
-                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                                    </svg>
+                        <!-- Limitations & Challenges Section -->
+                        <template x-if="analysisResult?.limitations_challenges">
+                            <section class="mb-10">
+                                <div class="flex items-center gap-3 mb-4">
+                                    <div class="w-10 h-10 rounded-lg bg-red-500 flex items-center justify-center flex-shrink-0 shadow-md">
+                                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                                        </svg>
+                                    </div>
+                                    <h2 class="text-2xl font-bold text-red-900">Limitations & Challenges</h2>
                                 </div>
-                                <div class="text-left">
-                                    <h3 class="font-semibold text-cyan-900">Future Work</h3>
-                                    <p class="text-xs text-cyan-600 mt-0.5">What's next</p>
+                                <div class="pl-13">
+                                    <div x-html="renderMarkdown(analysisResult?.limitations_challenges)"></div>
+                                    <button @click="copyToClipboard(analysisResult?.limitations_challenges || '', 'Limitations')"
+                                            class="mt-4 px-4 py-2 text-sm bg-red-50 hover:bg-red-100 text-red-700 rounded-lg transition-colors flex items-center gap-2 font-medium">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                        </svg>
+                                        Copy Limitations
+                                    </button>
                                 </div>
-                            </div>
-                        </div>
-                        <div class="px-5 py-4 flex-1 overflow-hidden">
-                            <p class="text-sm text-slate-700 leading-relaxed line-clamp-6" x-text="truncateText(analysisResult?.future_work, 180)"></p>
-                        </div>
-                        <div class="px-5 py-3 border-t border-slate-200 flex-shrink-0">
-                            <div class="flex gap-2">
-                                <button @click="copyToClipboard(analysisResult?.future_work || '', 'Future Work')"
-                                        class="flex-1 py-2 px-3 bg-slate-50 hover:bg-slate-100 text-slate-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
-                                        title="Copy Future Work">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                                    </svg>
-                                    Copy
-                                </button>
-                                <button @click="openDetailModal('Future Work', analysisResult?.future_work, 'cyan')"
-                                        class="flex-1 py-2 px-3 bg-cyan-50 hover:bg-cyan-100 text-cyan-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
-                                        title="View full detail">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                                    </svg>
-                                    Detail
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </template>
+                            </section>
+                        </template>
 
-                <!-- Conclusion Card -->
-                <template x-if="analysisResult?.conclusion">
-                    <div class="bg-white/90 backdrop-blur-lg rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow duration-200 h-[280px] flex flex-col">
-                        <div class="px-5 py-4 flex-shrink-0 bg-gradient-to-r from-slate-50 to-slate-100/50">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-lg bg-slate-600 flex items-center justify-center flex-shrink-0 shadow-md">
-                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                    </svg>
+                        <!-- Future Work Section -->
+                        <template x-if="analysisResult?.future_work">
+                            <section class="mb-10">
+                                <div class="flex items-center gap-3 mb-4">
+                                    <div class="w-10 h-10 rounded-lg bg-cyan-500 flex items-center justify-center flex-shrink-0 shadow-md">
+                                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                                        </svg>
+                                    </div>
+                                    <h2 class="text-2xl font-bold text-cyan-900">Future Work</h2>
                                 </div>
-                                <div class="text-left">
-                                    <h3 class="font-semibold text-slate-900">Conclusion</h3>
-                                    <p class="text-xs text-slate-600 mt-0.5">Key takeaways</p>
+                                <div class="pl-13">
+                                    <div x-html="renderMarkdown(analysisResult?.future_work)"></div>
+                                    <button @click="copyToClipboard(analysisResult?.future_work || '', 'Future Work')"
+                                            class="mt-4 px-4 py-2 text-sm bg-cyan-50 hover:bg-cyan-100 text-cyan-700 rounded-lg transition-colors flex items-center gap-2 font-medium">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                        </svg>
+                                        Copy Future Work
+                                    </button>
                                 </div>
-                            </div>
-                        </div>
-                        <div class="px-5 py-4 flex-1 overflow-hidden">
-                            <p class="text-sm text-slate-700 leading-relaxed line-clamp-6" x-text="truncateText(analysisResult?.conclusion, 180)"></p>
-                        </div>
-                        <div class="px-5 py-3 border-t border-slate-200 flex-shrink-0">
-                            <div class="flex gap-2">
-                                <button @click="copyToClipboard(analysisResult?.conclusion || '', 'Conclusion')"
-                                        class="flex-1 py-2 px-3 bg-slate-50 hover:bg-slate-100 text-slate-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
-                                        title="Copy Conclusion">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                                    </svg>
-                                    Copy
-                                </button>
-                                <button @click="openDetailModal('Conclusion', analysisResult?.conclusion, 'slate')"
-                                        class="flex-1 py-2 px-3 bg-slate-50 hover:bg-slate-100 text-slate-700 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
-                                        title="View full detail">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                                    </svg>
-                                    Detail
-                                </button>
-                            </div>
-                        </div>
+                            </section>
+                        </template>
+
+                        <!-- Conclusion Section -->
+                        <template x-if="analysisResult?.conclusion">
+                            <section class="mb-10">
+                                <div class="flex items-center gap-3 mb-4">
+                                    <div class="w-10 h-10 rounded-lg bg-slate-600 flex items-center justify-center flex-shrink-0 shadow-md">
+                                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                    </div>
+                                    <h2 class="text-2xl font-bold text-slate-900">Conclusion</h2>
+                                </div>
+                                <div class="pl-13">
+                                    <div x-html="renderMarkdown(analysisResult?.conclusion)"></div>
+                                    <button @click="copyToClipboard(analysisResult?.conclusion || '', 'Conclusion')"
+                                            class="mt-4 px-4 py-2 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors flex items-center gap-2 font-medium">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                        </svg>
+                                        Copy Conclusion
+                                    </button>
+                                </div>
+                            </section>
+                        </template>
                     </div>
-                </template>
+                </article>
             </div>
         </div>
 
@@ -1180,87 +1001,6 @@
                         </a>
                         <button @click="showPreview = false"
                                 class="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg transition-colors font-medium">
-                            Close
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Detail Modal -->
-        <div x-show="showDetailModal"
-             x-cloak
-             style="display: none;"
-             class="fixed inset-0 z-50">
-            <!-- Backdrop -->
-            <div class="absolute inset-0 bg-slate-900/75 backdrop-blur-sm"
-                 @click="closeDetailModal()"
-                 x-transition:enter="transition ease-out duration-300"
-                 x-transition:enter-start="opacity-0"
-                 x-transition:enter-end="opacity-100"
-                 x-transition:leave="transition ease-in duration-200"
-                 x-transition:leave-start="opacity-100"
-                 x-transition:leave-end="opacity-0"></div>
-
-            <!-- Modal Container -->
-            <div class="flex items-center justify-center min-h-screen p-4"
-                 x-transition:enter="transition ease-out duration-300"
-                 x-transition:enter-start="opacity-0 scale-95"
-                 x-transition:enter-end="opacity-100 scale-100"
-                 x-transition:leave="transition ease-in duration-200"
-                 x-transition:leave-start="opacity-100 scale-100"
-                 x-transition:leave-end="opacity-0 scale-95">
-
-                <!-- Modal Content -->
-                <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
-                    <!-- Modal Header -->
-                    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md"
-                                 :class="{
-                                     'bg-blue-500': currentDetailColor === 'blue',
-                                     'bg-purple-500': currentDetailColor === 'purple',
-                                     'bg-green-500': currentDetailColor === 'green',
-                                     'bg-indigo-500': currentDetailColor === 'indigo',
-                                     'bg-amber-500': currentDetailColor === 'amber',
-                                     'bg-red-500': currentDetailColor === 'red',
-                                     'bg-cyan-500': currentDetailColor === 'cyan',
-                                     'bg-slate-600': currentDetailColor === 'slate'
-                                 }">
-                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                </svg>
-                            </div>
-                            <h3 class="text-lg font-semibold text-slate-900" x-text="currentDetailTitle"></h3>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <button @click="copyToClipboard(currentDetail || '', currentDetailTitle)"
-                                    class="text-slate-400 hover:text-slate-600 transition-colors p-2 rounded-lg hover:bg-slate-200"
-                                    title="Copy to clipboard">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                                </svg>
-                            </button>
-                            <button @click="closeDetailModal()"
-                                    class="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-lg hover:bg-slate-200">
-                                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Modal Body -->
-                    <div class="flex-1 overflow-y-auto">
-                        <div class="p-6 prose prose-sm max-w-none">
-                            <div x-html="renderMarkdown(currentDetail)"></div>
-                        </div>
-                    </div>
-
-                    <!-- Modal Footer -->
-                    <div class="flex items-center justify-end px-6 py-4 border-t border-slate-200 bg-slate-50">
-                        <button @click="closeDetailModal()"
-                                class="px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg transition-colors font-medium">
                             Close
                         </button>
                     </div>
