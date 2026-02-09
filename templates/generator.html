@@ -1,24 +1,482 @@
 {% extends "layout.html" %}
 
 {% block title %}
-    PPT Generation - Paper Analyzer
+    PPT Generator - Paper Analyzer
 {% endblock title %}
 
 {% block main_content %}
-    <div class="p-8">
+    <div class="p-8 max-w-6xl mx-auto">
         <!-- Header -->
         <div class="mb-8">
-            <h1 class="text-3xl font-bold text-slate-900">PPT Generation</h1>
-            <p class="mt-2 text-slate-600">Generate presentations from your papers automatically</p>
+            <h1 class="text-3xl font-bold text-slate-900">PowerPoint Generator</h1>
+            <p class="mt-2 text-slate-600">Generate professional presentations from research papers automatically</p>
         </div>
 
-        <!-- Content Placeholder -->
-        <div class="bg-white/80 backdrop-blur-lg rounded-xl shadow-sm p-12 text-center border border-slate-200">
-            <svg class="mx-auto h-12 w-12 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
-            </svg>
-            <h3 class="mt-4 text-lg font-medium text-slate-900">PPT Generation Feature</h3>
-            <p class="mt-2 text-sm text-slate-500">This feature is coming soon. Stay tuned!</p>
+        <!-- Main Card -->
+        <div class="bg-white/80 backdrop-blur-lg rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <!-- Upload Section -->
+            <div class="p-8">
+                <h2 class="text-xl font-semibold text-slate-900 mb-4">Upload Research Paper</h2>
+                <p class="text-slate-600 mb-6">Upload a PDF of a research paper (max {{ max_pdf_size_mb|default:10 }}MB) to generate a presentation following academic standards with all required sections.</p>
+
+                <form id="pptForm" class="space-y-6" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <!-- File Upload -->
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Research Paper (PDF)</label>
+                        <input id="pdfFile" name="pdf_file" type="file" class="hidden" accept=".pdf" required>
+                        <div class="mt-2 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-300 border-dashed rounded-lg hover:border-blue-400 hover:shadow-md hover:bg-blue-50/50 transition-all cursor-pointer bg-slate-50"
+                             id="dropZone">
+                            <!-- Upload State (Default) -->
+                            <div id="uploadState" class="space-y-2 text-center">
+                                <svg class="mx-auto h-12 w-12 text-slate-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                                <div class="flex text-sm text-slate-600">
+                                    <label for="pdfFile" class="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none">
+                                        <span>Upload a file</span>
+                                    </label>
+                                    <p class="pl-1">or drag and drop</p>
+                                </div>
+                                <p class="text-xs text-slate-500">PDF up to {{ max_pdf_size_mb|default:10 }}MB</p>
+                            </div>
+                            <!-- Selected State (Hidden by default) -->
+                            <div id="selectedState" class="space-y-3 text-center hidden">
+                                <svg class="mx-auto h-12 w-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <div>
+                                    <p id="fileName" class="text-base font-semibold text-green-700"></p>
+                                    <p id="fileSize" class="text-xs text-slate-500 mt-1"></p>
+                                </div>
+                                <button type="button" id="changeFileBtn" class="text-blue-600 hover:text-blue-500 text-sm font-medium">
+                                    Change file
+                                </button>
+                            </div>
+                        </div>
+                        <p id="fileError" class="mt-2 text-sm text-red-600 hidden"></p>
+                    </div>
+
+                    <!-- Student Information -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="studentName" class="block text-sm font-medium text-slate-700 mb-2">Your Name</label>
+                            <input type="text" id="studentName" name="student_name" required
+                                   class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                                   placeholder="Enter your full name">
+                        </div>
+                        <div>
+                            <label for="studentId" class="block text-sm font-medium text-slate-700 mb-2">Student ID</label>
+                            <input type="text" id="studentId" name="student_id" required
+                                   class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                                   placeholder="Enter your student ID">
+                        </div>
+                    </div>
+
+                    <!-- Generate Button -->
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <input id="saveToDb" name="save_to_db" type="checkbox" checked
+                                   class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-300 rounded">
+                            <label for="saveToDb" class="ml-2 block text-sm text-slate-700">
+                                Save analysis to history
+                            </label>
+                        </div>
+                        <button type="submit" id="generateBtn"
+                                class="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center space-x-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                            </svg>
+                            <span>Generate PowerPoint</span>
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Progress Indicator -->
+                <div id="progressSection" class="mt-6 hidden">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm font-medium text-slate-700" id="progressText">Analyzing paper...</span>
+                        <span class="text-sm text-slate-500" id="progressPercent">0%</span>
+                    </div>
+                    <div class="w-full bg-slate-200 rounded-full h-2">
+                        <div id="progressBar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                    <p class="mt-2 text-sm text-slate-500" id="progressDetail">Extracting text from PDF...</p>
+                </div>
+            </div>
+
+            <!-- Features Section -->
+            <div class="bg-slate-50 px-8 py-6 border-t border-slate-200">
+                <h3 class="text-lg font-semibold text-slate-900 mb-4">Generated Presentation Includes</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div class="flex items-start space-x-3">
+                        <div class="flex-shrink-0">
+                            <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="font-medium text-slate-900">Cover Slide</p>
+                            <p class="text-sm text-slate-600">Title, authors, venue, year, URL</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start space-x-3">
+                        <div class="flex-shrink-0">
+                            <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="font-medium text-slate-900">Introduction</p>
+                            <p class="text-sm text-slate-600">Background & related work</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start space-x-3">
+                        <div class="flex-shrink-0">
+                            <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                                <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="font-medium text-slate-900">Motivation</p>
+                            <p class="text-sm text-slate-600">Problem & research gap</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start space-x-3">
+                        <div class="flex-shrink-0">
+                            <div class="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center">
+                                <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="font-medium text-slate-900">Main Idea</p>
+                            <p class="text-sm text-slate-600">Contributions & framework</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start space-x-3">
+                        <div class="flex-shrink-0">
+                            <div class="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center">
+                                <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="font-medium text-slate-900">Methodology</p>
+                            <p class="text-sm text-slate-600">Technical approach</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start space-x-3">
+                        <div class="flex-shrink-0">
+                            <div class="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
+                                <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="font-medium text-slate-900">Experiments</p>
+                            <p class="text-sm text-slate-600">Results & evaluation</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start space-x-3">
+                        <div class="flex-shrink-0">
+                            <div class="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center">
+                                <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="font-medium text-slate-900">Conclusion</p>
+                            <p class="text-sm text-slate-600">Summary & future work</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Requirements Note -->
+                <div class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div class="flex items-start">
+                        <svg class="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <div>
+                            <p class="text-sm font-medium text-blue-900">Presentation Requirements</p>
+                            <p class="text-sm text-blue-700 mt-1">Generated presentations follow academic standards with ≤16 slides including: cover slide, introduction, motivation, main idea & framework, methodology, experiments & results, and conclusion & future work.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- History Section -->
+        <div class="mt-8">
+            <h2 class="text-xl font-semibold text-slate-900 mb-4">Your History</h2>
+            <p class="text-slate-600 mb-4">You can also generate PowerPoint presentations from your previously analyzed papers.</p>
+            <a href="/history/" class="inline-flex items-center px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                View Analysis History
+            </a>
         </div>
     </div>
 {% endblock main_content %}
+
+{% block script %}
+<script>
+    const pptForm = document.getElementById('pptForm');
+    const pdfFile = document.getElementById('pdfFile');
+    const dropZone = document.getElementById('dropZone');
+    const uploadState = document.getElementById('uploadState');
+    const selectedState = document.getElementById('selectedState');
+    const fileName = document.getElementById('fileName');
+    const fileSize = document.getElementById('fileSize');
+    const fileError = document.getElementById('fileError');
+    const changeFileBtn = document.getElementById('changeFileBtn');
+    const generateBtn = document.getElementById('generateBtn');
+    const progressSection = document.getElementById('progressSection');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    const progressPercent = document.getElementById('progressPercent');
+    const progressDetail = document.getElementById('progressDetail');
+
+    // File input change handler
+    pdfFile.addEventListener('change', handleFileSelect);
+
+    // Change file button handler
+    changeFileBtn.addEventListener('click', () => {
+        pdfFile.click();
+    });
+
+    // Drag and drop handlers
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('border-blue-400', 'bg-blue-50');
+    });
+
+    dropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('border-blue-400', 'bg-blue-50');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('border-blue-400', 'bg-blue-50');
+
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            pdfFile.files = files;
+            handleFileSelect({ target: pdfFile });
+        }
+    });
+
+    // Click handler for the entire drop zone
+    dropZone.addEventListener('click', (e) => {
+        // Don't trigger if clicking the "Change file" button
+        if (e.target.id === 'changeFileBtn') {
+            return;
+        }
+        // Trigger the hidden file input
+        pdfFile.click();
+    });
+
+    function handleFileSelect(e) {
+        const file = e.target.files[0];
+        fileError.classList.add('hidden');
+
+        if (!file) {
+            showUploadState();
+            return;
+        }
+
+        // Validate file type
+        if (!file.name.endsWith('.pdf')) {
+            fileError.textContent = 'Please upload a PDF file.';
+            fileError.classList.remove('hidden');
+            showUploadState();
+            return;
+        }
+
+        // Validate file size ({{ max_pdf_size_mb|default:10 }}MB)
+        const maxSize = {{ max_pdf_size_mb|default:10 }} * 1024 * 1024;
+        if (file.size > maxSize) {
+            fileError.textContent = `File size exceeds {{ max_pdf_size_mb|default:10 }}MB limit.`;
+            fileError.classList.remove('hidden');
+            showUploadState();
+            return;
+        }
+
+        // Show selected state with file info
+        fileName.textContent = file.name;
+        fileSize.textContent = formatFileSize(file.size);
+        showSelectedState();
+    }
+
+    function showUploadState() {
+        uploadState.classList.remove('hidden');
+        selectedState.classList.add('hidden');
+        dropZone.classList.remove('border-green-500', 'bg-green-50', 'hover:border-green-600', 'hover:bg-green-100/50');
+        dropZone.classList.add('border-slate-300', 'bg-slate-50');
+    }
+
+    function showSelectedState() {
+        uploadState.classList.add('hidden');
+        selectedState.classList.remove('hidden');
+        dropZone.classList.remove('border-slate-300', 'bg-slate-50');
+        dropZone.classList.add('border-green-500', 'bg-green-50');
+        // Ensure clickable appearance is maintained when file is selected
+        dropZone.classList.add('hover:border-green-600', 'hover:shadow-md', 'hover:bg-green-100/50');
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // Form submission handler
+    pptForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const file = pdfFile.files[0];
+        if (!file) {
+            fileError.textContent = 'Please select a PDF file.';
+            fileError.classList.remove('hidden');
+            return;
+        }
+
+        // Disable button and show progress
+        generateBtn.disabled = true;
+        generateBtn.innerHTML = `
+            <svg class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span>Processing...</span>
+        `;
+
+        progressSection.classList.remove('hidden');
+
+        try {
+            const formData = new FormData(pptForm);
+
+            // Get CSRF token from the form
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+            // Simulate progress (since we can't track real upload progress with fetch)
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                if (progress < 90) {
+                    progress += 10;
+                    updateProgress(progress, getProgressText(progress));
+                }
+            }, 500);
+
+            const response = await fetch('/generator/generate/', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': csrfToken
+                }
+            });
+
+            clearInterval(progressInterval);
+            updateProgress(100, 'Complete!');
+
+            if (response.ok) {
+                // Get the filename from Content-Disposition header
+                const contentDisposition = response.headers.get('Content-Disposition');
+                let filename = 'presentation.pptx';
+                if (contentDisposition) {
+                    const match = contentDisposition.match(/filename="(.+)"/);
+                    if (match) {
+                        filename = match[1];
+                    }
+                }
+
+                // Download the file
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+
+                // Show success message
+                progressDetail.textContent = `Successfully generated: ${filename}`;
+                progressDetail.classList.add('text-green-600');
+
+                // Check if PPT generation was saved
+                const pptId = response.headers.get('X-PPT-ID');
+                if (pptId) {
+                    setTimeout(() => {
+                        if (confirm('Presentation generated! Would you like to view it in your PPT history?')) {
+                            window.location.href = `/ppt-history/${pptId}/`;
+                        } else {
+                            resetForm();
+                        }
+                    }, 500);
+                } else {
+                    setTimeout(resetForm, 1000);
+                }
+            } else {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to generate presentation');
+            }
+
+        } catch (error) {
+            console.error('Error:', error);
+            fileError.textContent = error.message || 'Failed to generate presentation. Please try again.';
+            fileError.classList.remove('hidden');
+            progressSection.classList.add('hidden');
+        } finally {
+            generateBtn.disabled = false;
+            generateBtn.innerHTML = `
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                </svg>
+                <span>Generate PowerPoint</span>
+            `;
+        }
+    });
+
+    function updateProgress(percent, text) {
+        progressBar.style.width = `${percent}%`;
+        progressPercent.textContent = `${percent}%`;
+        progressText.textContent = text;
+    }
+
+    function getProgressText(progress) {
+        if (progress < 30) return 'Extracting text from PDF...';
+        if (progress < 50) return 'Analyzing paper content...';
+        if (progress < 70) return 'Extracting metadata...';
+        if (progress < 90) return 'Generating presentation...';
+        return 'Finalizing...';
+    }
+
+    function resetForm() {
+        pptForm.reset();
+        fileError.classList.add('hidden');
+        progressSection.classList.add('hidden');
+        progressDetail.classList.remove('text-green-600');
+        progressBar.style.width = '0%';
+        showUploadState();
+    }
+</script>
+{% endblock script %}

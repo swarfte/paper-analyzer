@@ -26,8 +26,9 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib.colors import HexColor
 
-from .services import analyze_paper
-from .models import PaperAnalysis
+from .services import analyze_paper, analyze_paper_for_ppt
+from .models import PaperAnalysis, PPTGeneration
+from .ppt_generator import generate_powerpoint, extract_metadata_from_paper
 
 logger = logging.getLogger(__name__)
 
@@ -79,10 +80,15 @@ def analyze_pdf(request):
         # Save to database
         paper_analysis = PaperAnalysis.objects.create(
             user=request.user,
-            title=pdf_file.name.replace('.pdf', ''),
+            title=analysis_result.get('title', pdf_file.name.replace('.pdf', '')),
             pdf_file=pdf_file,
             original_filename=pdf_file.name,
+            authors=analysis_result.get('authors', ''),
+            venue=analysis_result.get('venue', ''),
+            year=analysis_result.get('year', ''),
+            paper_url=analysis_result.get('paper_url', ''),
             abstract=analysis_result.get('abstract', ''),
+            introduction=analysis_result.get('introduction', ''),
             motivation=analysis_result.get('motivation', ''),
             contribution=analysis_result.get('contribution', ''),
             what_does_paper_do=analysis_result.get('what_does_paper_do', ''),
@@ -112,7 +118,10 @@ def generator(request):
     """
     PPT generator page view - requires authentication.
     """
-    return render(request, 'generator.html')
+    context = {
+        'max_pdf_size_mb': settings.MAX_PDF_SIZE_MB,
+    }
+    return render(request, 'generator.html', context)
 
 
 @login_required(login_url='/login/')
@@ -155,6 +164,7 @@ def analysis_detail(request, analysis_id):
     # Build analysis result dict from model fields
     analysis_result = {
         'abstract': analysis.abstract,
+        'introduction': analysis.introduction,
         'motivation': analysis.motivation,
         'contribution': analysis.contribution,
         'what_does_paper_do': analysis.what_does_paper_do,
@@ -572,6 +582,7 @@ def export_analysis_pdf(request, analysis_id):
 
         # Add all sections
         add_section('Abstract', analysis.abstract)
+        add_section('Introduction', analysis.introduction)
         add_section('Motivation', analysis.motivation)
         add_section('Contribution', analysis.contribution)
         add_section('Methodology', analysis.how_does_paper_do)
@@ -590,5 +601,193 @@ def export_analysis_pdf(request, analysis_id):
         return JsonResponse({
             'success': False,
             'error': 'Failed to generate PDF. Please try again.'
+        }, status=500)
+
+
+@login_required(login_url='/login/')
+def generate_ppt_from_history(request, analysis_id):
+    """
+    Generate a PowerPoint presentation from an existing analysis.
+
+    Args:
+        analysis_id: ID of the PaperAnalysis record
+
+    Returns:
+        HttpResponse: .pptx file download
+    """
+    analysis = get_object_or_404(PaperAnalysis, id=analysis_id, user=request.user)
+
+    try:
+        # Build analysis data dict from model fields
+        analysis_data = {
+            'abstract': analysis.abstract,
+            'introduction': analysis.introduction,
+            'motivation': analysis.motivation,
+            'contribution': analysis.contribution,
+            'what_does_paper_do': analysis.what_does_paper_do,
+            'how_does_paper_do': analysis.how_does_paper_do,
+            'limitations_challenges': analysis.limitations_challenges,
+            'future_work': analysis.future_work,
+            'conclusion': analysis.conclusion,
+        }
+
+        # Get student info from request (query params) or use existing
+        student_name = request.GET.get('student_name', analysis.student_name or 'Your Name')
+        student_id = request.GET.get('student_id', analysis.student_id or 'Student ID')
+
+        # Build metadata
+        metadata = {
+            'title': analysis.title,
+            'authors': analysis.authors,
+            'venue': analysis.venue,
+            'year': analysis.year,
+            'paper_url': analysis.paper_url,
+            'student_name': student_name,
+            'student_id': student_id,
+        }
+
+        # Generate PowerPoint
+        ppt_buffer = generate_powerpoint(analysis_data, metadata)
+
+        # Create filename
+        safe_title = analysis.title.replace(' ', '_').replace('/', '_').replace('\\', '_')[:100]
+        filename = f"{safe_title}_presentation.pptx"
+
+        # Create response
+        response = HttpResponse(
+            ppt_buffer.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.presentationml.presentation'
+        )
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+        return response
+
+    except Exception as e:
+        logger.error(f"Error generating PPT for analysis {analysis_id}: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Failed to generate PowerPoint. Please try again.'
+        }, status=500)
+
+
+@login_required(login_url='/login/')
+@require_POST
+def generate_ppt_from_upload(request):
+    """
+    Generate a PowerPoint presentation directly from an uploaded PDF.
+
+    This endpoint analyzes the paper using PPT-optimized prompts and generates a PPT in one step,
+    with optional student information provided in the request.
+
+    Request parameters:
+        - pdf_file: The PDF file to analyze
+        - student_name: (optional) Student name for presentation
+        - student_id: (optional) Student ID for presentation
+
+    Returns:
+        JsonResponse: Success/error response
+    """
+    if 'pdf_file' not in request.FILES:
+        return JsonResponse({
+            'success': False,
+            'error': 'No PDF file uploaded. Please select a file.'
+        }, status=400)
+
+    pdf_file = request.FILES['pdf_file']
+    student_name = request.POST.get('student_name', 'Your Name')
+    student_id = request.POST.get('student_id', 'Student ID')
+
+    # Validate file type
+    if not pdf_file.name.endswith('.pdf'):
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid file format. Please upload a PDF file.'
+        }, status=400)
+
+    # Validate file size using settings
+    max_size_bytes = settings.MAX_PDF_SIZE_MB * 1024 * 1024
+    if pdf_file.size > max_size_bytes:
+        return JsonResponse({
+            'success': False,
+            'error': f'File size exceeds {settings.MAX_PDF_SIZE_MB}MB limit.'
+        }, status=400)
+
+    try:
+        # Analyze the paper using PPT-optimized prompt
+        analysis_result = analyze_paper_for_ppt(pdf_file, student_name, student_id)
+
+        # Extract metadata from paper text
+        from .services import extract_text_from_pdf
+        paper_text = extract_text_from_pdf(pdf_file)
+        paper_metadata = extract_metadata_from_paper(paper_text, pdf_file.name)
+
+        # Enhance metadata with LLM-extracted data if available
+        if analysis_result.get('title'):
+            paper_metadata['title'] = analysis_result['title']
+        if analysis_result.get('authors'):
+            paper_metadata['authors'] = analysis_result['authors']
+        if analysis_result.get('venue'):
+            paper_metadata['venue'] = analysis_result['venue']
+        if analysis_result.get('year'):
+            paper_metadata['year'] = analysis_result['year']
+        if analysis_result.get('paper_url'):
+            paper_metadata['paper_url'] = analysis_result['paper_url']
+
+        # Add student info
+        paper_metadata['student_name'] = student_name
+        paper_metadata['student_id'] = student_id
+
+        # Optionally save to database (if requested)
+        save_to_db = request.POST.get('save_to_db', 'false').lower() == 'true'
+        ppt_id = None
+        if save_to_db:
+            ppt_generation = PPTGeneration.objects.create(
+                user=request.user,
+                title=paper_metadata['title'],
+                pdf_file=pdf_file,
+                original_filename=pdf_file.name,
+                authors=paper_metadata['authors'],
+                venue=paper_metadata['venue'],
+                year=paper_metadata['year'],
+                paper_url=paper_metadata['paper_url'],
+                student_name=student_name,
+                student_id=student_id,
+                abstract=analysis_result.get('abstract', ''),
+                introduction=analysis_result.get('introduction', ''),
+                motivation=analysis_result.get('motivation', ''),
+                contribution=analysis_result.get('contribution', ''),
+                what_does_paper_do=analysis_result.get('what_does_paper_do', ''),
+                how_does_paper_do=analysis_result.get('how_does_paper_do', ''),
+                future_work=analysis_result.get('future_work', ''),
+                conclusion=analysis_result.get('conclusion', ''),
+                analysis_data=analysis_result
+            )
+            ppt_id = ppt_generation.id
+
+        # Generate PowerPoint
+        ppt_buffer = generate_powerpoint(analysis_result, paper_metadata)
+
+        # Create filename
+        safe_title = paper_metadata['title'].replace(' ', '_').replace('/', '_').replace('\\', '_')[:100]
+        filename = f"{safe_title}_presentation.pptx"
+
+        # Create response
+        response = HttpResponse(
+            ppt_buffer.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.presentationml.presentation'
+        )
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+        # If saved to DB, include the PPT ID in response header
+        if ppt_id:
+            response['X-PPT-ID'] = str(ppt_id)
+
+        return response
+
+    except Exception as e:
+        logger.error(f"Error generating PPT from upload: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
         }, status=500)
 

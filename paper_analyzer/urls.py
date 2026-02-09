@@ -24,7 +24,7 @@ import os
 from analyzer.views import (
     custom_login, custom_logout, analyzer, generator, analyze_pdf,
     analysis_history, analysis_detail, delete_analysis, analysis_list_api,
-    export_analysis_pdf
+    export_analysis_pdf, generate_ppt_from_history, generate_ppt_from_upload
 )
 
 urlpatterns = [
@@ -35,10 +35,12 @@ urlpatterns = [
     path('analyzer/', analyzer, name='analyzer'),
     path('analyzer/analyze/', analyze_pdf, name='analyze_pdf'),
     path('generator/', generator, name='generator'),
+    path('generator/generate/', generate_ppt_from_upload, name='generate_ppt'),
     path('history/', analysis_history, name='analysis_history'),
     path('history/<int:analysis_id>/', analysis_detail, name='analysis_detail'),
     path('history/<int:analysis_id>/delete/', delete_analysis, name='delete_analysis'),
     path('history/<int:analysis_id>/export/pdf/', export_analysis_pdf, name='export_analysis_pdf'),
+    path('history/<int:analysis_id>/export/ppt/', generate_ppt_from_history, name='export_ppt'),
     path('api/history/', analysis_list_api, name='analysis_list_api'),
 ]
 
