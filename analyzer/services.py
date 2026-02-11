@@ -176,7 +176,7 @@ def create_ppt_generation_prompt(paper_text: str, student_name: str = "Your Name
     """
     Create a specialized prompt for LLM to analyze a research paper for PPT generation.
     This prompt is optimized for generating presentation-ready content with specific
-    focus on what should appear on slides.
+    focus on what should appear on slides, following the academic presentation template.
 
     Args:
         paper_text: Full text content of the research paper
@@ -186,112 +186,275 @@ def create_ppt_generation_prompt(paper_text: str, student_name: str = "Your Name
     Returns:
         str: Formatted prompt for the LLM
     """
-    prompt = f"""You are an expert academic presentation designer. Your task is to analyze the following research paper and extract content specifically for generating a professional PowerPoint presentation suitable for academic presentation requirements (≤16 slides).
+    prompt = f"""You are an expert academic presentation designer. Your task is to analyze the following research paper and extract content specifically for generating a professional PowerPoint presentation following the standard academic presentation template (approximately 12-16 slides).
 
 ## PAPER CONTENT:
-{paper_text[:25000]}
+{paper_text[:30000]}
 
-## PRESENTATION REQUIREMENTS:
+## PRESENTATION TEMPLATE STRUCTURE:
 
-This analysis will be used to generate an academic presentation with the following structure:
-1. Cover Slide (title, authors, venue, student info)
-2. Introduction & Related Work (1-2 slides)
-3. Motivation (1 slide)
-4. Main Idea & Framework (1-2 slides)
-5. Methodology (2-4 slides)
-6. Experiments & Results (2-4 slides)
-7. Conclusion & Future Work (1-2 slides)
+This analysis will be used to generate an academic presentation with the following exact structure:
 
-## ANALYSIS REQUIREMENTS:
+**Slide 1: Cover Slide**
+- Paper title (large, bold)
+- Authors and venue
+- Student name and ID
 
-Please extract and organize content specifically for presentation slides. Focus on VISUAL-READY content that can be easily converted to bullet points and diagrams.
+**Slide 2: Introduction**
+- Research background and context
+- Related work summary
+- Research gap identification
 
-### PAPER METADATA (for cover slide)
-Extract:
-- Paper title (exact, as it should appear on the cover)
-- All authors (formatted for display)
+**Slide 3: Literature Review / Related Work**
+- Key prior approaches (3-4 items)
+- Limitations of existing methods
+- How this paper differs
+
+**Slide 4: Problem Statement / Motivation**
+- Core problem definition
+- Current challenges
+- Why this research matters
+
+**Slide 5: Main Idea & Contributions**
+- Core innovation (1 sentence)
+- Key contributions (3-5 bullet points)
+- Framework overview
+
+**Slide 6: Methodology Overview**
+- High-level approach
+- System/framework architecture
+
+**Slide 7: Technical Details**
+- Key algorithms or techniques
+- Important equations or formulas
+- Implementation details
+
+**Slide 8: Experimental Setup**
+- Datasets used
+- Evaluation metrics
+- Baseline methods
+- Implementation details
+
+**Slide 9: Results - Quantitative**
+- Main quantitative results
+- Performance metrics with specific numbers
+- Comparisons with baselines
+
+**Slide 10: Results - Qualitative Analysis**
+- Key findings and insights
+- Performance analysis
+- Ablation studies (if available)
+
+**Slide 11: Discussion**
+- Interpretation of results
+- Strengths and limitations
+- Practical implications
+
+**Slide 12: Conclusion**
+- Summary of contributions
+- Impact on the field
+- Future work directions
+
+**Slide 13: Thank You / Q&A**
+- Contact information
+- References placeholder
+
+## CRITICAL CONTENT REQUIREMENTS:
+
+For EACH section below, provide COMPREHENSIVE, DETAILED content. Each bullet point should be a complete, meaningful statement. DO NOT be brief - provide enough content for full slides.
+
+### 1. PAPER METADATA
+Extract exactly:
+- Paper title (verbatim)
+- All authors with affiliations if available
 - Publication venue (e.g., "CVPR 2024", "NeurIPS 2023")
 - Publication year
-- Paper URL if available
+- Paper URL (arXiv, official link, or DOI)
 
-### 1. INTRODUCTION & RELATED WORK (for 1-2 slides)
-Extract presentation-ready content:
-- **Background**: 2-3 bullet points on the research domain
-- **Related Work**: 3-4 key prior approaches with brief descriptions
-- **Research Gap**: What's missing and why this paper matters
-- Format for visual presentation (bullet points, concise)
+### 2. INTRODUCTION (for Slide 2-3)
+Provide DETAILED content:
+- **Research Domain**: 3-4 bullet points explaining the field, context, and background
+- **Related Work**: 4-6 bullet points covering key prior papers, their approaches, and limitations
+- **Research Gap**: 2-3 clear bullet points identifying what's missing in existing research
+- **Your Approach**: 1-2 sentences on how this paper addresses the gap
 
-### 2. MOTIVATION (for 1 slide)
-Extract compelling motivation:
-- **Problem Statement**: What is the core problem? (1-2 sentences)
-- **Current Limitations**: 3-4 bullet points on issues with existing approaches
-- **Why Now**: Why is this research timely? (1 sentence)
-- Make it impactful and presentation-friendly
+Example format:
+```
+- Computer vision domain: Deep learning for image recognition has advanced significantly in recent years
+- Transformer architectures like Vision Transformer (ViT) have shown promising results
+- However, computational cost remains a major challenge for deployment on edge devices
+- Prior work: ViT (Dosovitskiy et al., 2020) introduced pure transformer for vision tasks
+- Prior work: Swin Transformer (Liu et al., 2021) proposed hierarchical structure with shifted windows
+- Prior work: DeIT (Touvron et al., 2021) demonstrated efficient training with distillation
+- Limitation: Existing methods require extensive computational resources and long training time
+- Research gap: Need for efficient transformers that can work on resource-constrained devices
+- Our approach: We propose a novel efficient attention mechanism that reduces computational complexity
+```
 
-### 3. MAIN IDEA & CONTRIBUTIONS (for 1-2 slides)
-Extract the key contributions:
-- **Main Idea**: One clear sentence summarizing the core innovation
-- **Key Contributions**: 3-5 bullet points on specific contributions
-- **Framework Overview**: High-level description suitable for a diagram
-- Focus on what makes this work novel
+### 3. LITERATURE REVIEW (for Slide 3)
+Provide COMPREHENSIVE related work:
+- List 5-7 key prior approaches with details:
+  - Method name and authors
+  - Key idea or contribution
+  - Main limitation (1 sentence each)
+- Organize chronologically or thematically
+- Show progression of research in the field
 
-### 4. METHODOLOGY (for 2-4 slides)
-Extract technical approach in presentable format:
-- **Overview**: 2-3 sentence high-level description
-- **Key Components**: Break down into 4-6 main components with brief descriptions
-- **Algorithm/Process**: Step-by-step flow (suitable for flowchart)
-- **Technical Details**: Key equations or technical insights (2-3 items)
-- Organize with clear subsections for multiple slides
+### 4. PROBLEM STATEMENT / MOTIVATION (for Slide 4)
+Provide compelling problem statement:
+- **Core Problem**: 2-3 clear sentences defining what problem is being solved
+- **Current Limitations**: 4-5 bullet points on specific issues with existing approaches
+- **Why Important**: 2-3 bullets on real-world impact or significance
+- **Key Challenges**: 2-3 bullets on technical hurdles
 
-### 5. EXPERIMENTS & RESULTS (for 2-4 slides)
-Extract results in presentation format:
-- **Datasets**: What data was used? (1-2 bullet points)
-- **Baselines**: Comparison methods (list 3-5)
-- **Metrics**: Evaluation metrics used (list)
-- **Key Results**: Quantitative results in bullet format
-  - State specific numbers, percentages, improvements
-  - Format: "Method X achieved Y% improvement on Z dataset"
-- **Main Findings**: 3-4 key takeaways from experiments
-- Include specific numbers for charts/visuals
+### 5. MAIN IDEA & CONTRIBUTIONS (for Slide 5)
+Extract detailed contributions:
+- **Main Idea**: One clear, comprehensive sentence (20-30 words) summarizing the core innovation
+- **Key Contributions**: 4-6 detailed bullet points, each describing a specific contribution
+- **Framework Overview**: 3-4 sentences explaining the high-level approach suitable for a diagram
 
-### 6. CONCLUSION & FUTURE WORK (for 1-2 slides)
-Extract concluding insights:
-- **Key Takeaways**: 3-4 bullet points on main contributions
-- **Impact**: How does this advance the field? (1-2 sentences)
-- **Future Work**: 3-4 suggested directions or open problems
+Each contribution should be specific:
+```
+- Novel efficient attention mechanism: We propose a sparse attention pattern that reduces complexity from O(n²) to O(n log n)
+- Multi-scale feature fusion: We introduce a new fusion module that combines features at different scales for better representation
+- Self-distillation training: We design a self-supervised training approach that improves performance without external data
+- Comprehensive evaluation: We validate on 5 benchmarks and achieve state-of-the-art results with 40% fewer parameters
+```
+
+### 6. METHODOLOGY OVERVIEW (for Slide 6)
+Provide comprehensive technical overview:
+- **System Overview**: 3-4 sentences explaining the overall framework/pipeline
+- **Key Components**: List 4-6 main components with brief descriptions
+- **Architecture Flow**: Describe how components connect and work together
+- Format for creating a system diagram
+
+### 7. TECHNICAL DETAILS (for Slide 7)
+Extract in-depth technical content:
+- **Key Algorithms**: 2-3 detailed algorithms or techniques with descriptions
+- **Mathematical Formulations**: Include key equations, formulas, or mathematical insights (if available)
+- **Implementation Details**: 3-4 bullets on specific implementation choices
+- **Novel Technical Aspects**: What's technically innovative about the approach
+
+### 8. EXPERIMENTAL SETUP (for Slide 8)
+Provide detailed experimental configuration:
+- **Datasets**: 3-4 bullet points per dataset (name, size, characteristics, why used)
+- **Evaluation Metrics**: List all metrics with brief explanations (4-6 metrics)
+- **Baseline Methods**: 5-7 methods compared against with brief descriptions
+- **Implementation Settings**: Training details (optimizer, learning rate, batch size, epochs, hardware)
+- **Data Splits**: Training/validation/test split information
+
+Example:
+```
+- ImageNet-1K: Standard large-scale dataset with 1.28M training images and 50K validation images across 1000 categories
+- COCO 2017: Object detection dataset with 118K training images and 5K validation images
+- ADE20K: Scene parsing dataset with 20K images for semantic segmentation
+- Metrics: Top-1 accuracy - standard classification accuracy measure
+- Metrics: Top-5 accuracy - percentage of correct predictions in top 5
+- Metrics: FLOPs - floating point operations for computational cost
+- Metrics: Parameters - number of trainable parameters
+- Metrics: Inference time - milliseconds per image on standard hardware
+- Baselines: ViT-B/16 - Vision Transformer base model with 16x16 patch size
+- Baselines: Swin-T - Swin Transformer tiny variant
+- Baselines: ResNet-50 - Classic convolutional neural network baseline
+- Training: AdamW optimizer, lr=3e-3, batch size=1024, 300 epochs
+```
+
+### 9. RESULTS - QUANTITATIVE (for Slide 9)
+Extract specific quantitative results:
+- **Main Results**: Provide 4-6 bullet points with specific numbers
+  - Include method names, datasets, metrics, and exact values
+  - Show comparisons with baselines
+  - Highlight improvements with percentages
+- **Performance Table**: Format results suitable for a table
+- **Key Achievements**: What specific metrics improved and by how much
+
+Example format:
+```
+- ImageNet-1K Top-1 Accuracy: Our Method 84.2%, ViT-B 81.8%, Swin-T 81.3% (+2.9% improvement)
+- ImageNet-1K Top-5 Accuracy: Our Method 96.8%, ViT-B 95.7%, Swin-T 95.5% (+1.3% improvement)
+- COCO mAP: Our Method 52.4%, DETR (baseline) 42.0%, (+10.4% improvement)
+- Computational Efficiency: 40% fewer FLOPs compared to ViT-B (4.2G vs 7.1G)
+- Inference Speed: 15ms per image vs 25ms for ViT-B (40% faster)
+- Parameters: 21M parameters vs 86M for ViT-B (75% reduction)
+```
+
+### 10. RESULTS - QUALITATIVE ANALYSIS (for Slide 10)
+Provide detailed results analysis:
+- **Ablation Studies**: 3-4 bullet points on component effectiveness (if available)
+- **Visualization Results**: Describe key qualitative findings (2-3 bullets)
+- **Error Analysis**: What cases does the method fail on (2-3 bullets)
+- **Comparison Analysis**: Why does this approach work better (2-3 bullets)
+- **Cross-Dataset Results**: Performance on different datasets (if available)
+
+### 11. DISCUSSION (for Slide 11)
+Provide thoughtful analysis:
+- **Result Interpretation**: 3-4 bullets explaining what results mean
+- **Strengths**: 3-4 bullets on what makes this approach strong
+- **Limitations**: 3-4 bullets on acknowledged limitations
+- **Practical Implications**: 2-3 bullets on real-world applications
+- **Broader Impact**: 2-3 bullets on significance to the field
+
+### 12. CONCLUSION (for Slide 12)
+Provide comprehensive conclusion:
+- **Summary**: 3-4 bullet points summarizing main contributions
+- **Impact**: 2-3 sentences on how this advances the field
+- **Future Work**: 4-5 specific bullet points on potential extensions or improvements
+- **Takeaway Message**: One clear sentence summarizing the key message
 
 ## RESPONSE FORMAT:
-Provide your analysis in JSON format optimized for slide generation:
+Provide your analysis in JSON format. BE COMPREHENSIVE and DETAILED - each section should have substantial content for complete slides.
 
 {{
     "title": "Exact Paper Title",
     "authors": "Author1, Author2, Author3",
-    "venue": "Conference/Journal Name Year",
+    "venue": "Conference/Journal Name",
     "year": "Publication Year",
     "paper_url": "https://...",
-    "introduction": "- Research domain: 1-2 sentences\\n- Related work:\\n  - Prior approach 1: brief description\\n  - Prior approach 2: brief description\\n- Research gap: What's missing",
-    "motivation": "- Core problem: Clear statement\\n- Limitation 1\\n- Limitation 2\\n- Limitation 3\\n- Why this matters",
-    "contribution": "### Main Idea\\nOne clear sentence\\n\\n### Key Contributions\\n- Contribution 1\\n- Contribution 2\\n- Contribution 3\\n- Contribution 4\\n\\n### Framework Overview\\nHigh-level description suitable for diagram",
-    "how_does_paper_do": "### Overview\\n2-3 sentence description\\n\\n### Key Components\\n1. Component 1: description\\n2. Component 2: description\\n3. Component 3: description\\n\\n### Algorithm\\nStep 1\\nStep 2\\nStep 3\\n\\n### Technical Details\\n- Key equation/insight 1\\n- Key equation/insight 2",
-    "what_does_paper_do": "### Datasets\\n- Dataset 1: description\\n- Dataset 2: description\\n\\n### Baselines\\n- Method 1\\n- Method 2\\n- Method 3\\n\\n### Metrics\\n- Metric 1\\n- Metric 2\\n\\n### Key Results\\n- Our method achieved X% on dataset Y (Z% improvement over baseline)\\n- On dataset A, achieved B%\\n- Comparison: Method A: 85%, Method B: 88%, **Ours: 92%**\\n\\n### Main Findings\\n- Finding 1\\n- Finding 2\\n- Finding 3",
-    "conclusion": "### Key Takeaways\\n- Takeaway 1\\n- Takeaway 2\\n- Takeaway 3\\n\\n### Impact\\n1-2 sentences on field advancement\\n\\n### Future Work\\n- Direction 1\\n- Direction 2\\n- Direction 3",
-    "future_work": "1. Extension 1\\n2. Extension 2\\n3. Open problem 1",
-    "abstract": "Brief 2-3 sentence summary for speaker notes"
+
+    "introduction": "### Research Domain\\n- Bullet point 1 with full explanation\\n- Bullet point 2 with full explanation\\n- Bullet point 3 with full explanation\\n\\n### Related Work\\n- Prior work 1: detailed description including author and key contribution\\n- Prior work 2: detailed description including limitation\\n- Prior work 3: detailed description\\n- Prior work 4: detailed description\\n\\n### Research Gap\\n- Gap 1: detailed explanation\\n- Gap 2: detailed explanation\\n\\n### Our Approach\\n- Brief overview of our solution",
+
+    "literature_review": "1. Method Name (Authors, Year): Key idea and contribution\\n   Limitation: Specific limitation of this approach\\n\\n2. Method Name (Authors, Year): Key idea and contribution\\n   Limitation: Specific limitation of this approach\\n\\n3. Method Name (Authors, Year): Key idea and contribution\\n   Limitation: Specific limitation of this approach\\n\\n4. Method Name (Authors, Year): Key idea and contribution\\n   Limitation: Specific limitation of this approach\\n\\n5. Method Name (Authors, Year): Key idea and contribution\\n   Limitation: Specific limitation of this approach",
+
+    "motivation": "### Core Problem\\nClear statement of the problem being solved (2-3 sentences)\\n\\n### Current Limitations\\n- Limitation 1: detailed explanation of existing problem\\n- Limitation 2: detailed explanation\\n- Limitation 3: detailed explanation\\n- Limitation 4: detailed explanation\\n\\n### Why Important\\n- Significance point 1\\n- Significance point 2\\n- Significance point 3\\n\\n### Key Challenges\\n- Challenge 1\\n- Challenge 2\\n- Challenge 3",
+
+    "contribution": "### Main Idea\\nOne comprehensive sentence (20-30 words) summarizing the core innovation\\n\\n### Key Contributions\\n- Contribution 1: detailed description with specific technical details\\n- Contribution 2: detailed description with specific technical details\\n- Contribution 3: detailed description with specific technical details\\n- Contribution 4: detailed description with specific technical details\\n- Contribution 5: detailed description with specific technical details\\n\\n### Framework Overview\\n- Framework component 1: description\\n- Framework component 2: description\\n- Framework component 3: description\\n- Framework component 4: description",
+
+    "how_does_paper_do": "### System Overview\\n3-4 sentences explaining the overall framework\\n\\n### Key Components\\n1. Component 1: detailed description of what it does and how it works\\n2. Component 2: detailed description of what it does and how it works\\n3. Component 3: detailed description of what it does and how it works\\n4. Component 4: detailed description of what it does and how it works\\n5. Component 5: detailed description of what it does and how it works\\n\\n### Architecture Flow\\n- Step 1: description\\n- Step 2: description\\n- Step 3: description\\n- Step 4: description\\n\\n### Technical Details\\n- Key algorithm or technique 1 with description\\n- Key algorithm or technique 2 with description\\n- Key algorithm or technique 3 with description",
+
+    "what_does_paper_do": "### Datasets\\n- Dataset 1: detailed description including size, characteristics, and why used\\n- Dataset 2: detailed description including size, characteristics, and why used\\n- Dataset 3: detailed description including size, characteristics, and why used\\n\\n### Evaluation Metrics\\n- Metric 1: detailed explanation of what it measures\\n- Metric 2: detailed explanation of what it measures\\n- Metric 3: detailed explanation of what it measures\\n- Metric 4: detailed explanation of what it measures\\n- Metric 5: detailed explanation of what it measures\\n\\n### Baseline Methods\\n- Baseline 1: brief description of the method\\n- Baseline 2: brief description of the method\\n- Baseline 3: brief description of the method\\n- Baseline 4: brief description of the method\\n- Baseline 5: brief description of the method\\n\\n### Implementation Settings\\n- Training: optimizer details, learning rate, batch size, epochs\\n- Hardware: computational resources used\\n- Data split: training/validation/test distribution\\n\\n### Key Quantitative Results\\n- Dataset 1 - Metric 1: Our Method X.X%, Baseline 1 Y.Y%, Baseline 2 Z.Z% (improvement: +A.A%)\\n- Dataset 1 - Metric 2: Our Method X.X%, Baseline 1 Y.Y% (improvement: +B.B%)\\n- Dataset 2 - Metric 1: Our Method X.X%, Baseline Y.Y% (improvement: +C.C%)\\n- Dataset 2 - Metric 2: Our Method X.X%, Baseline Y.Y% (improvement: +D.D%)\\n- Computational: FLOPs, parameters, inference time with specific numbers\\n\\n### Main Findings\\n- Finding 1: detailed explanation of key result\\n- Finding 2: detailed explanation of key result\\n- Finding 3: detailed explanation of key result\\n- Finding 4: detailed explanation of key result",
+
+    "results_analysis": "### Ablation Studies\\n- Ablation 1: what was tested and what was learned\\n- Ablation 2: what was tested and what was learned\\n- Ablation 3: what was tested and what was learned\\n\\n### Performance Analysis\\n- Analysis point 1: detailed explanation\\n- Analysis point 2: detailed explanation\\n- Analysis point 3: detailed explanation\\n\\n### Error Analysis\\n- Error type 1: when and why it occurs\\n- Error type 2: when and why it occurs\\n\\n### Comparison Insights\\n- Insight 1: why our approach outperforms\\n- Insight 2: what makes the difference",
+
+    "discussion": "### Result Interpretation\\n- Interpretation point 1: what the results mean\\n- Interpretation point 2: what the results mean\\n- Interpretation point 3: what the results mean\\n\\n### Strengths\\n- Strength 1: detailed explanation\\n- Strength 2: detailed explanation\\n- Strength 3: detailed explanation\\n\\n### Limitations\\n- Limitation 1: detailed explanation\\n- Limitation 2: detailed explanation\\n- Limitation 3: detailed explanation\\n\\n### Practical Implications\\n- Implication 1: how this can be applied\\n- Implication 2: real-world applications\\n\\n### Broader Impact\\n- Impact point 1: significance to the field\\n- Impact point 2: future directions enabled",
+
+    "conclusion": "### Summary of Contributions\\n- Contribution 1: summary of main achievement\\n- Contribution 2: summary of main achievement\\n- Contribution 3: summary of main achievement\\n- Contribution 4: summary of main achievement\\n\\n### Impact\\n2-3 sentences on how this work advances the field and opens new directions\\n\\n### Future Work\\n- Future direction 1: specific extension or improvement\\n- Future direction 2: specific extension or improvement\\n- Future direction 3: specific extension or improvement\\n- Future direction 4: specific extension or improvement\\n- Future direction 5: open problem or challenge\\n\\n### Key Takeaway\\nOne clear sentence that summarizes the main message of this work",
+
+    "abstract": "Brief 2-3 sentence summary of the entire paper for speaker notes or overview",
+
+    "future_work": "1. Specific extension 1: detailed description\\n2. Specific extension 2: detailed description\\n3. Open problem 1: detailed description\\n4. Open problem 2: detailed description\\n5. Open problem 3: detailed description"
 }}
 
-## CRITICAL REQUIREMENTS:
-- **Slide-Ready**: All content must be presentation-ready (bullet points, concise)
-- **Specific Numbers**: Include exact percentages, scores, improvements for charts
-- **Visual Structure**: Use subsections (###) to indicate slide breaks
-- **Bullet Format**: Use `-` for bullets, numbered lists for sequences
-- **Concise**: Each point should be 1-2 sentences max
-- **Complete**: Must contain all sections for a full presentation
+## ABSOLUTELY CRITICAL REQUIREMENTS:
 
-Generate presentation content that is:
-- Immediately usable for slide creation
-- Visually structured and easy to present
-- Quantitative and specific (no vague statements)
-- Organized for clear slide-by-slide conversion
+1. **BE COMPREHENSIVE**: Each section must contain SUBSTANTIAL content. Do NOT be brief. Provide enough content for complete, informative slides.
+
+2. **BE SPECIFIC**: Include exact numbers, percentages, metrics, model names, dataset names, author names, years, etc.
+
+3. **BE STRUCTURED**: Use ### subsections to clearly indicate slide breaks. Each ### should represent content for one slide.
+
+4. **USE BULLET POINTS**: Format content with - or numbered lists for easy conversion to slides.
+
+5. **BE DETAILED**: Each bullet point should be a complete, meaningful statement, not a fragment.
+
+6. **NO VAGUE STATEMENTS**: Avoid phrases like "better performance", "improved results". Instead say "achieved 84.2% accuracy vs 81.3% baseline (+2.9% improvement)".
+
+7. **COMPLETE CONTENT**: Ensure all sections are filled. If a paper doesn't explicitly have a section, infer and create reasonable content based on the paper's context.
+
+8. **ACADEMIC TONE**: Use professional, scholarly language appropriate for academic presentations.
+
+9. **EXTRACTION ACCURACY**: Extract information ACCURATELY from the paper. Do not invent or hallucinate content. If information is not available, state so clearly.
+
+Your output will be used to generate actual PowerPoint slides. Make it presentation-ready, comprehensive, and impressive.
 """
 
     return prompt

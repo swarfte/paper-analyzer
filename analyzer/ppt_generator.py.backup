@@ -16,7 +16,7 @@ from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
 from pptx.enum.shapes import MSO_SHAPE
 from pptx.oxml.xmlchemy import OxmlElement
 from pptx.oxml.ns import nsmap
-from pptx.enum.dml import MSO_THEME_COLOR_INDEX
+from pptx.enum.dml import MSO_THEME_COLOR_MODE
 import re
 
 logger = logging.getLogger(__name__)
@@ -26,22 +26,20 @@ class PowerPointGenerator:
     """
     Generate professional academic PowerPoint presentations from paper analysis data.
 
-    Creates a comprehensive presentation following the academic template:
+    Creates a comprehensive presentation with:
     - Cover slide (title slide)
-    - Introduction (1 slide)
-    - Literature Review / Related Work (1 slide)
-    - Problem Statement / Motivation (1 slide)
-    - Main Idea & Contributions (1 slide)
-    - Methodology Overview (1 slide)
-    - Technical Details (1 slide)
-    - Experimental Setup (1 slide)
-    - Results - Quantitative (1 slide)
-    - Results - Qualitative Analysis (1 slide)
-    - Discussion (1 slide)
-    - Conclusion & Future Work (1 slide)
-    - Thank You / Q&A (1 slide)
+    - Introduction slides (2 slides)
+    - Related Work slides (2 slides)
+    - Motivation slide (1 slide)
+    - Main Idea & Contribution slides (1 slide)
+    - Technical Framework slides (2 slides)
+    - Experiment Methodology slides (2 slides)
+    - Experimental Results slides (2 slides)
+    - Future Work slides (1 slide)
+    - Conclusion slide (1 slide)
+    - Q&A / Thank You slide (1 slide)
 
-    Total: 12-14 slides
+    Total: ~13-16 slides
     """
 
     # Professional academic color scheme (blue & teal gradient)
@@ -69,7 +67,7 @@ class PowerPointGenerator:
 
     def generate(self) -> Presentation:
         """
-        Generate the complete PowerPoint presentation following the academic template.
+        Generate the complete PowerPoint presentation.
 
         Returns:
             Presentation: The complete PowerPoint presentation object
@@ -85,57 +83,33 @@ class PowerPointGenerator:
             else:
                 logger.info(f"  {key}: {type(value)}")
 
-        # Slide 1: Cover slide
+        # 1. Cover slide
         logger.info("Adding cover slide...")
         self._add_cover_slide()
 
-        # Slide 2: Introduction
+        # 2. Introduction/Related Work
         logger.info("Adding introduction slide...")
         self._add_introduction_slide()
 
-        # Slide 3: Literature Review / Related Work
-        logger.info("Adding literature review slide...")
-        self._add_literature_review_slide()
-
-        # Slide 4: Problem Statement / Motivation
+        # 3. Motivation
         logger.info("Adding motivation slide...")
         self._add_motivation_slide()
 
-        # Slide 5: Main Idea & Contributions
-        logger.info("Adding main idea & contributions slide...")
+        # 4. Main Idea & Framework
+        logger.info("Adding main idea slide...")
         self._add_main_idea_slide()
 
-        # Slide 6: Methodology Overview
-        logger.info("Adding methodology overview slide...")
-        self._add_methodology_overview_slide()
+        # 5. Methodology (can span multiple slides)
+        logger.info("Adding methodology slides...")
+        self._add_methodology_slides()
 
-        # Slide 7: Technical Details
-        logger.info("Adding technical details slide...")
-        self._add_technical_details_slide()
+        # 6. Experiments & Results (can span multiple slides)
+        logger.info("Adding experiments slides...")
+        self._add_experiments_slides()
 
-        # Slide 8: Experimental Setup
-        logger.info("Adding experimental setup slide...")
-        self._add_experimental_setup_slide()
-
-        # Slide 9: Results - Quantitative
-        logger.info("Adding quantitative results slide...")
-        self._add_quantitative_results_slide()
-
-        # Slide 10: Results - Qualitative Analysis
-        logger.info("Adding qualitative analysis slide...")
-        self._add_qualitative_analysis_slide()
-
-        # Slide 11: Discussion
-        logger.info("Adding discussion slide...")
-        self._add_discussion_slide()
-
-        # Slide 12: Conclusion & Future Work
+        # 7. Conclusion & Future Work
         logger.info("Adding conclusion slide...")
         self._add_conclusion_slide()
-
-        # Slide 13: Thank You / Q&A
-        logger.info("Adding thank you slide...")
-        self._add_thank_you_slide()
 
         logger.info(f"PowerPoint generation complete. Total slides: {len(self.prs.slides)}")
         return self.prs
@@ -260,238 +234,88 @@ class PowerPointGenerator:
         return slide, content_frame
 
     def _add_introduction_slide(self):
-        """Add Introduction slide."""
+        """Add Introduction and Related Work slide."""
         introduction = self.analysis_data.get('introduction', self.analysis_data.get('abstract', ''))
         logger.info(f"Introduction content length: {len(introduction) if introduction else 0}")
 
         if introduction and introduction.strip():
-            _, content_frame = self._add_title_slide("Introduction")
-            self._add_content_to_frame(content_frame, introduction, max_slides=1)
+            slide, content_frame = self._add_title_slide("Introduction & Related Work")
+            self._add_content_to_frame(content_frame, introduction, max_slides=2)
         else:
             logger.warning("Introduction is empty, skipping slide")
 
-    def _add_literature_review_slide(self):
-        """Add Literature Review / Related Work slide."""
-        literature_review = self.analysis_data.get('literature_review', '')
-        if not literature_review:
-            # Fallback to introduction content for related work
-            introduction = self.analysis_data.get('introduction', '')
-            if 'Related Work' in introduction or '### Related Work' in introduction:
-                # Extract related work section
-                parts = introduction.split('### Related Work')
-                if len(parts) > 1:
-                    literature_review = "### Related Work\n" + parts[1].split('###')[0]
-
-        logger.info(f"Literature review content length: {len(literature_review) if literature_review else 0}")
-
-        if literature_review and literature_review.strip():
-            _, content_frame = self._add_title_slide("Literature Review")
-            self._add_content_to_frame(content_frame, literature_review, max_slides=1)
-        else:
-            logger.warning("Literature review is empty, skipping slide")
-
     def _add_motivation_slide(self):
-        """Add Problem Statement / Motivation slide."""
+        """Add Motivation slide."""
         motivation = self.analysis_data.get('motivation', '')
         logger.info(f"Motivation content length: {len(motivation) if motivation else 0}")
 
         if motivation and motivation.strip():
-            _, content_frame = self._add_title_slide("Problem Statement / Motivation")
-            self._add_content_to_frame(content_frame, motivation, max_slides=1)
+            slide, content_frame = self._add_title_slide("Motivation")
+            self._add_content_to_frame(content_frame, motivation, max_slides=2)
         else:
             logger.warning("Motivation is empty, skipping slide")
 
     def _add_main_idea_slide(self):
-        """Add Main Idea & Contributions slide."""
-        contribution = self.analysis_data.get('contribution', '')
-        logger.info(f"Main idea content length: {len(contribution) if contribution else 0}")
+        """Add Main Idea & Framework slide."""
+        # Combine contribution and methodology overview
+        content = ""
+        if self.analysis_data.get('contribution'):
+            content += "### Key Contributions\n\n" + self.analysis_data['contribution'] + "\n\n"
 
-        if contribution and contribution.strip():
-            _, content_frame = self._add_title_slide("Main Idea & Contributions")
-            self._add_content_to_frame(content_frame, contribution, max_slides=1)
+        if self.analysis_data.get('how_does_paper_do'):
+            # Extract first paragraph for overview
+            methodology = self.analysis_data['how_does_paper_do']
+            first_para = methodology.split('\n\n')[0] if '\n\n' in methodology else methodology[:300]
+            content += "### Framework Overview\n\n" + first_para
+
+        logger.info(f"Main idea content length: {len(content)}")
+
+        if content and content.strip():
+            slide, content_frame = self._add_title_slide("Main Idea & Framework")
+            self._add_content_to_frame(content_frame, content, max_slides=2)
         else:
             logger.warning("Main idea content is empty, skipping slide")
 
-    def _add_methodology_overview_slide(self):
-        """Add Methodology Overview slide."""
+    def _add_methodology_slides(self):
+        """Add Methodology slides (can be multiple)."""
         methodology = self.analysis_data.get('how_does_paper_do', '')
-        logger.info(f"Methodology overview content length: {len(methodology) if methodology else 0}")
+        logger.info(f"Methodology content length: {len(methodology) if methodology else 0}")
 
         if methodology and methodology.strip():
-            # Extract the overview section (up to first ###)
-            sections = methodology.split('###')
-            overview = sections[0] if sections else methodology
-
-            _, content_frame = self._add_title_slide("Methodology Overview")
-            self._add_content_to_frame(content_frame, overview, max_slides=1)
+            # First slide with title
+            slide, content_frame = self._add_title_slide("Methodology")
+            self._add_content_to_frame(content_frame, methodology, max_slides=4)
         else:
-            logger.warning("Methodology overview is empty, skipping slide")
+            logger.warning("Methodology is empty, skipping slide")
 
-    def _add_technical_details_slide(self):
-        """Add Technical Details slide."""
-        methodology = self.analysis_data.get('how_does_paper_do', '')
-        logger.info(f"Technical details content length: {len(methodology) if methodology else 0}")
-
-        if methodology and methodology.strip():
-            # Extract sections after the first ### (Technical Details, Key Components, etc.)
-            sections = methodology.split('###')
-            if len(sections) > 1:
-                technical_content = '###'.join(sections[1:])  # Skip the overview section
-            else:
-                technical_content = methodology
-
-            _, content_frame = self._add_title_slide("Technical Details")
-            self._add_content_to_frame(content_frame, technical_content, max_slides=1)
-        else:
-            logger.warning("Technical details is empty, skipping slide")
-
-    def _add_experimental_setup_slide(self):
-        """Add Experimental Setup slide."""
+    def _add_experiments_slides(self):
+        """Add Experiments & Results slides (can be multiple)."""
         experiments = self.analysis_data.get('what_does_paper_do', '')
-        logger.info(f"Experimental setup content length: {len(experiments) if experiments else 0}")
+        logger.info(f"Experiments content length: {len(experiments) if experiments else 0}")
 
         if experiments and experiments.strip():
-            # Extract the setup section (Datasets, Metrics, Baselines)
-            lines = experiments.split('\n')
-            setup_lines = []
-            in_setup = True
-            for line in lines:
-                # Stop at results section
-                if '### Key Results' in line or '### Key Quantitative Results' in line or '### Main Findings' in line:
-                    break
-                if in_setup:
-                    setup_lines.append(line)
-
-            setup_content = '\n'.join(setup_lines) if setup_lines else experiments
-
-            _, content_frame = self._add_title_slide("Experimental Setup")
-            self._add_content_to_frame(content_frame, setup_content, max_slides=1)
+            # First slide with title
+            slide, content_frame = self._add_title_slide("Experiments & Results")
+            self._add_content_to_frame(content_frame, experiments, max_slides=4)
         else:
-            logger.warning("Experimental setup is empty, skipping slide")
-
-    def _add_quantitative_results_slide(self):
-        """Add Results - Quantitative slide."""
-        experiments = self.analysis_data.get('what_does_paper_do', '')
-        logger.info(f"Quantitative results content length: {len(experiments) if experiments else 0}")
-
-        if experiments and experiments.strip():
-            # Extract the results section
-            lines = experiments.split('\n')
-            results_lines = []
-            in_results = False
-            for line in lines:
-                if '### Key Results' in line or '### Key Quantitative Results' in line:
-                    in_results = True
-                if in_results:
-                    results_lines.append(line)
-
-            results_content = '\n'.join(results_lines) if results_lines else experiments
-
-            _, content_frame = self._add_title_slide("Results - Quantitative")
-            self._add_content_to_frame(content_frame, results_content, max_slides=1)
-        else:
-            logger.warning("Quantitative results is empty, skipping slide")
-
-    def _add_qualitative_analysis_slide(self):
-        """Add Results - Qualitative Analysis slide."""
-        results_analysis = self.analysis_data.get('results_analysis', '')
-        experiments = self.analysis_data.get('what_does_paper_do', '')
-
-        logger.info(f"Qualitative analysis content length: {len(results_analysis) if results_analysis else 0}")
-
-        content = results_analysis if results_analysis else ""
-        # Also add main findings from experiments if available
-        if '### Main Findings' in experiments:
-            parts = experiments.split('### Main Findings')
-            if len(parts) > 1:
-                findings = parts[1].split('###')[0]
-                if content:
-                    content += "\n\n### Main Findings\n" + findings
-                else:
-                    content = "### Main Findings\n" + findings
-
-        if content and content.strip():
-            _, content_frame = self._add_title_slide("Results - Qualitative Analysis")
-            self._add_content_to_frame(content_frame, content, max_slides=1)
-        else:
-            logger.warning("Qualitative analysis is empty, skipping slide")
-
-    def _add_discussion_slide(self):
-        """Add Discussion slide."""
-        discussion = self.analysis_data.get('discussion', '')
-        logger.info(f"Discussion content length: {len(discussion) if discussion else 0}")
-
-        if discussion and discussion.strip():
-            _, content_frame = self._add_title_slide("Discussion")
-            self._add_content_to_frame(content_frame, discussion, max_slides=1)
-        else:
-            logger.warning("Discussion is empty, skipping slide")
+            logger.warning("Experiments is empty, skipping slide")
 
     def _add_conclusion_slide(self):
-        """Add Conclusion & Future Work slide."""
-        conclusion = self.analysis_data.get('conclusion', '')
-        logger.info(f"Conclusion content length: {len(conclusion) if conclusion else 0}")
+        """Add Conclusion and Future Work slide."""
+        content = ""
+        if self.analysis_data.get('conclusion'):
+            content += "### Conclusion\n\n" + self.analysis_data['conclusion'] + "\n\n"
 
-        if conclusion and conclusion.strip():
-            _, content_frame = self._add_title_slide("Conclusion & Future Work")
-            self._add_content_to_frame(content_frame, conclusion, max_slides=1)
+        if self.analysis_data.get('future_work'):
+            content += "### Future Work\n\n" + self.analysis_data['future_work']
+
+        logger.info(f"Conclusion content length: {len(content)}")
+
+        if content and content.strip():
+            slide, content_frame = self._add_title_slide("Conclusion & Future Work")
+            self._add_content_to_frame(content_frame, content, max_slides=2)
         else:
-            logger.warning("Conclusion is empty, skipping slide")
-
-    def _add_thank_you_slide(self):
-        """Add Thank You / Q&A slide."""
-        slide = self.prs.slides.add_slide(self.prs.slide_layouts[6])  # Blank layout
-
-        # Add header bar
-        header = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(10), Inches(1))
-        header.fill.solid()
-        header.fill.fore_color.rgb = self.PRIMARY_COLOR
-        header.line.fill.background()
-
-        # Add title
-        title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.2), Inches(9), Inches(0.6))
-        title_frame = title_box.text_frame
-        title_frame.text = "Thank You!"
-        title_para = title_frame.paragraphs[0]
-        title_para.font.size = Pt(40)
-        title_para.font.bold = True
-        title_para.font.color.rgb = RGBColor(255, 255, 255)
-        title_para.alignment = PP_ALIGN.CENTER
-
-        # Add subtitle
-        subtitle_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.5), Inches(9), Inches(0.5))
-        subtitle_frame = subtitle_box.text_frame
-        subtitle_frame.text = "Questions & Answers"
-        subtitle_para = subtitle_frame.paragraphs[0]
-        subtitle_para.font.size = Pt(24)
-        subtitle_para.font.color.rgb = self.TEXT_COLOR
-        subtitle_para.alignment = PP_ALIGN.CENTER
-
-        # Add student info
-        student_name = self.metadata.get('student_name', 'Your Name')
-        student_id = self.metadata.get('student_id', 'Student ID')
-        contact_box = slide.shapes.add_textbox(Inches(0.5), Inches(3.5), Inches(9), Inches(0.5))
-        contact_frame = contact_box.text_frame
-        contact_frame.text = f"Presented by: {student_name} ({student_id})"
-        contact_para = contact_frame.paragraphs[0]
-        contact_para.font.size = Pt(18)
-        contact_para.font.color.rgb = self.SECONDARY_COLOR
-        contact_para.alignment = PP_ALIGN.CENTER
-
-        # Add paper reference
-        if self.metadata.get('title'):
-            ref_box = slide.shapes.add_textbox(Inches(0.5), Inches(4.5), Inches(9), Inches(1))
-            ref_frame = ref_box.text_frame
-            ref_frame.word_wrap = True
-            ref_frame.text = f"Paper: {self.metadata['title']}"
-            if self.metadata.get('authors'):
-                ref_frame.text += f"\nAuthors: {self.metadata['authors']}"
-            if self.metadata.get('venue'):
-                ref_frame.text += f"\nVenue: {self.metadata['venue']}"
-            ref_para = ref_frame.paragraphs[0]
-            ref_para.font.size = Pt(14)
-            ref_para.font.color.rgb = self.TEXT_COLOR
-            ref_para.alignment = PP_ALIGN.CENTER
+            logger.warning("Conclusion content is empty, skipping slide")
 
     def _add_content_to_frame(self, text_frame, content: str, max_slides: int = 2):
         """
@@ -700,9 +524,8 @@ def generate_powerpoint(analysis_data: Dict[str, Any], metadata: Dict[str, Any])
         raise ValueError("Analysis data is empty")
 
     # Check if we have at least some content
-    content_fields = ['introduction', 'literature_review', 'motivation', 'contribution',
-                     'how_does_paper_do', 'what_does_paper_do', 'results_analysis',
-                     'discussion', 'conclusion', 'future_work']
+    content_fields = ['introduction', 'motivation', 'contribution', 'how_does_paper_do',
+                     'what_does_paper_do', 'conclusion', 'future_work']
     has_content = any(analysis_data.get(field) for field in content_fields)
 
     if not has_content:
