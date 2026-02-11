@@ -1,0 +1,366 @@
+{% extends "layout.html" %}
+
+{% block title %} PPT History Details {% endblock title %}
+
+{% block style %}
+    {{ block.super }}
+    <style>
+        [x-cloak] {
+            display: none !important;
+        }
+        .line-clamp-6 {
+            display: -webkit-box;
+            -webkit-line-clamp: 6;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        /* Markdown prose styles for detail modal */
+        .prose {
+            max-width: none;
+            --tw-prose-body: theme('colors.slate.700');
+            --tw-prose-headings: theme('colors.slate.900');
+            --tw-prose-links: theme('colors.purple.600');
+            --tw-prose-bold: theme('colors.slate.900');
+            --tw-prose-code: theme('colors.pink.600');
+        }
+        .prose ul {
+            list-style-type: disc;
+            padding-left: 1.5em;
+        }
+        .prose ul li::marker {
+            color: theme('colors.purple.500');
+        }
+        .prose ol {
+            list-style-type: decimal;
+            padding-left: 1.5em;
+        }
+        .prose ol li::marker {
+            color: theme('colors.purple.500');
+            font-weight: 600;
+        }
+        .prose li {
+            margin-bottom: 0.5em;
+        }
+        .prose strong {
+            font-weight: 600;
+            color: theme('colors.slate.900');
+        }
+        .prose p {
+            margin-bottom: 1em;
+            line-height: 1.75;
+        }
+        .prose h1, .prose h2, .prose h3 {
+            font-weight: 600;
+            margin-top: 1.5em;
+            margin-bottom: 0.75em;
+            color: theme('colors.slate.900');
+        }
+        .prose h2 {
+            font-size: 1.25em;
+        }
+        .prose h3 {
+            font-size: 1.1em;
+        }
+    </style>
+{% endblock style %}
+
+{% block main_content %}
+    <div class="p-6" x-data="{
+        showDeleteModal: false,
+        pdfFileUrl: {% if ppt.pdf_file %}'{{ ppt.pdf_file.url }}'{% else %}null{% endif %},
+        copySuccess: '',
+        copyTimeout: null,
+
+        async copyToClipboard(text, label = 'Content') {
+            try {
+                await navigator.clipboard.writeText(text);
+                this.copySuccess = `${label} copied!`;
+                if (this.copyTimeout) {
+                    clearTimeout(this.copyTimeout);
+                }
+                this.copyTimeout = setTimeout(() => {
+                    this.copySuccess = '';
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy:', err);
+                this.copySuccess = 'Failed to copy';
+            }
+        },
+
+        renderMarkdown(text) {
+            if (!text) return '';
+            if (typeof marked !== 'undefined') {
+                return marked.parse(text);
+            }
+            return text;
+        }
+    }">
+        <!-- Copy Success Notification -->
+        <div x-show="copySuccess"
+             x-transition
+             x-cloak
+             class="fixed top-4 right-4 z-50 px-4 py-2 bg-green-600 text-white rounded-lg shadow-lg flex items-center gap-2"
+             style="display: none;">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            <span x-text="copySuccess"></span>
+        </div>
+
+        <!-- Header with File Info and Actions -->
+        <div class="mb-8 max-w-7xl mx-auto">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div class="flex-1">
+                    <a href="/ppt-history/" class="inline-flex items-center text-purple-600 hover:text-purple-700 mb-2 text-sm font-medium">
+                        <svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                        </svg>
+                        Back to PPT History
+                    </a>
+                    <h1 class="text-3xl font-bold text-slate-900">{{ ppt.title }}</h1>
+                    <p class="mt-1 text-slate-600">
+                        Generated on {{ ppt.created_date|date:"Y-m-d H:i" }} • {{ ppt.original_filename }}
+                        {% if ppt.student_name %}
+                        • Presented by {{ ppt.student_name }} ({{ ppt.student_id }})
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="flex flex-col gap-3">
+                    <button @click="showDeleteModal = true"
+                            class="px-4 py-2 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all duration-200">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                        Delete
+                    </button>
+                    {% if ppt.pdf_file %}
+                    <a :href="pdfFileUrl" target="_blank" rel="noopener"
+                       class="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all duration-200">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                        </svg>
+                        View original PDF
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Full Scrollable Report -->
+        <div class="max-w-4xl mx-auto">
+            <article class="bg-white/90 backdrop-blur-lg rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <!-- Document Content -->
+                <div class="p-8 md:p-12 prose prose-slate prose-lg max-w-none">
+                    {% if analysis_result.abstract %}
+                    <!-- Abstract Section -->
+                    <section class="mb-10">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 rounded-lg bg-purple-500 flex items-center justify-center flex-shrink-0 shadow-md">
+                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.293V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                            </div>
+                            <h2 class="text-2xl font-bold text-purple-900">Abstract</h2>
+                        </div>
+                        <div class="pl-13">
+                            <div x-html="renderMarkdown('{{ analysis_result.abstract|escapejs }}')"></div>
+                            <button @click="copyToClipboard('{{ analysis_result.abstract|escapejs }}', 'Abstract')"
+                                    class="mt-4 px-4 py-2 text-sm bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg transition-colors flex items-center gap-2 font-medium">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                </svg>
+                                Copy Abstract
+                            </button>
+                        </div>
+                    </section>
+                    {% endif %}
+
+                    {% if analysis_result.motivation %}
+                    <!-- Motivation Section -->
+                    <section class="mb-10">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 rounded-lg bg-pink-500 flex items-center justify-center flex-shrink-0 shadow-md">
+                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                                </svg>
+                            </div>
+                            <h2 class="text-2xl font-bold text-pink-900">Motivation</h2>
+                        </div>
+                        <div class="pl-13">
+                            <div x-html="renderMarkdown('{{ analysis_result.motivation|escapejs }}')"></div>
+                            <button @click="copyToClipboard('{{ analysis_result.motivation|escapejs }}', 'Motivation')"
+                                    class="mt-4 px-4 py-2 text-sm bg-pink-50 hover:bg-pink-100 text-pink-700 rounded-lg transition-colors flex items-center gap-2 font-medium">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                </svg>
+                                Copy Motivation
+                            </button>
+                        </div>
+                    </section>
+                    {% endif %}
+
+                    {% if analysis_result.contribution %}
+                    <!-- Contribution Section -->
+                    <section class="mb-10">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 rounded-lg bg-fuchsia-500 flex items-center justify-center flex-shrink-0 shadow-md">
+                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
+                                </svg>
+                            </div>
+                            <h2 class="text-2xl font-bold text-fuchsia-900">Contribution</h2>
+                        </div>
+                        <div class="pl-13">
+                            <div x-html="renderMarkdown('{{ analysis_result.contribution|escapejs }}')"></div>
+                            <button @click="copyToClipboard('{{ analysis_result.contribution|escapejs }}', 'Contribution')"
+                                    class="mt-4 px-4 py-2 text-sm bg-fuchsia-50 hover:bg-fuchsia-100 text-fuchsia-700 rounded-lg transition-colors flex items-center gap-2 font-medium">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                </svg>
+                                Copy Contribution
+                            </button>
+                        </div>
+                    </section>
+                    {% endif %}
+
+                    {% if analysis_result.how_does_paper_do %}
+                    <!-- Methodology Section -->
+                    <section class="mb-10">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 rounded-lg bg-indigo-500 flex items-center justify-center flex-shrink-0 shadow-md">
+                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                </svg>
+                            </div>
+                            <h2 class="text-2xl font-bold text-indigo-900">Methodology</h2>
+                        </div>
+                        <div class="pl-13">
+                            <div x-html="renderMarkdown('{{ analysis_result.how_does_paper_do|escapejs }}')"></div>
+                            <button @click="copyToClipboard('{{ analysis_result.how_does_paper_do|escapejs }}', 'Methodology')"
+                                    class="mt-4 px-4 py-2 text-sm bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg transition-colors flex items-center gap-2 font-medium">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                </svg>
+                                Copy Methodology
+                            </button>
+                        </div>
+                    </section>
+                    {% endif %}
+
+                    {% if analysis_result.what_does_paper_do %}
+                    <!-- Experiments & Results Section -->
+                    <section class="mb-10">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 rounded-lg bg-violet-500 flex items-center justify-center flex-shrink-0 shadow-md">
+                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path>
+                                </svg>
+                            </div>
+                            <h2 class="text-2xl font-bold text-violet-900">Experiments & Results</h2>
+                        </div>
+                        <div class="pl-13">
+                            <div x-html="renderMarkdown('{{ analysis_result.what_does_paper_do|escapejs }}')"></div>
+                            <button @click="copyToClipboard('{{ analysis_result.what_does_paper_do|escapejs }}', 'Experiments & Results')"
+                                    class="mt-4 px-4 py-2 text-sm bg-violet-50 hover:bg-violet-100 text-violet-700 rounded-lg transition-colors flex items-center gap-2 font-medium">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                </svg>
+                                Copy Experiments
+                            </button>
+                        </div>
+                    </section>
+                    {% endif %}
+
+                    {% if analysis_result.future_work %}
+                    <!-- Future Work Section -->
+                    <section class="mb-10">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 rounded-lg bg-cyan-500 flex items-center justify-center flex-shrink-0 shadow-md">
+                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                                </svg>
+                            </div>
+                            <h2 class="text-2xl font-bold text-cyan-900">Future Work</h2>
+                        </div>
+                        <div class="pl-13">
+                            <div x-html="renderMarkdown('{{ analysis_result.future_work|escapejs }}')"></div>
+                            <button @click="copyToClipboard('{{ analysis_result.future_work|escapejs }}', 'Future Work')"
+                                    class="mt-4 px-4 py-2 text-sm bg-cyan-50 hover:bg-cyan-100 text-cyan-700 rounded-lg transition-colors flex items-center gap-2 font-medium">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                </svg>
+                                Copy Future Work
+                            </button>
+                        </div>
+                    </section>
+                    {% endif %}
+
+                    {% if analysis_result.conclusion %}
+                    <!-- Conclusion Section -->
+                    <section class="mb-10">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 rounded-lg bg-slate-600 flex items-center justify-center flex-shrink-0 shadow-md">
+                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <h2 class="text-2xl font-bold text-slate-900">Conclusion</h2>
+                        </div>
+                        <div class="pl-13">
+                            <div x-html="renderMarkdown('{{ analysis_result.conclusion|escapejs }}')"></div>
+                            <button @click="copyToClipboard('{{ analysis_result.conclusion|escapejs }}', 'Conclusion')"
+                                    class="mt-4 px-4 py-2 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors flex items-center gap-2 font-medium">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                </svg>
+                                Copy Conclusion
+                            </button>
+                        </div>
+                    </section>
+                    {% endif %}
+                </div>
+            </article>
+        </div>
+
+        <!-- Delete Confirmation Modal -->
+        <div x-show="showDeleteModal"
+             x-cloak
+             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+             @click.self="showDeleteModal = false">
+            <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+                <h3 class="text-lg font-semibold text-slate-900 mb-2">Delete PPT Generation?</h3>
+                <p class="text-slate-600 mb-6">
+                    Are you sure you want to delete this PPT generation record? This action cannot be undone.
+                </p>
+                <div class="flex gap-3 justify-end">
+                    <button @click="showDeleteModal = false"
+                            class="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors">
+                        Cancel
+                    </button>
+                    <button @click="
+                        fetch('/ppt-history/{{ ppt.id }}/delete/', {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                window.location.href = '/ppt-history/';
+                            }
+                        })
+                    "
+                            class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors">
+                        Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- CSRF Token for AJAX -->
+        <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+    </div>
+{% endblock main_content %}

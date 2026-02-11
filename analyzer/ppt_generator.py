@@ -6,6 +6,7 @@ following academic presentation standards with proper formatting and structure.
 """
 
 import os
+import logging
 from typing import Dict, Any, Optional, Tuple
 from io import BytesIO
 from pptx import Presentation
@@ -16,6 +17,8 @@ from pptx.enum.shapes import MSO_SHAPE
 from pptx.oxml.xmlchemy import OxmlElement
 from pptx.oxml.ns import nsmap
 import re
+
+logger = logging.getLogger(__name__)
 
 
 class PowerPointGenerator:
@@ -60,27 +63,46 @@ class PowerPointGenerator:
         Returns:
             Presentation: The complete PowerPoint presentation object
         """
+        logger.info("Starting PowerPoint generation...")
+        logger.info(f"Analysis data keys: {list(self.analysis_data.keys())}")
+        logger.info(f"Metadata keys: {list(self.metadata.keys())}")
+
+        # Log content availability
+        for key, value in self.analysis_data.items():
+            if isinstance(value, str):
+                logger.info(f"  {key}: {len(value)} chars - {'EMPTY' if not value.strip() else 'has content'}")
+            else:
+                logger.info(f"  {key}: {type(value)}")
+
         # 1. Cover slide
+        logger.info("Adding cover slide...")
         self._add_cover_slide()
 
         # 2. Introduction/Related Work
+        logger.info("Adding introduction slide...")
         self._add_introduction_slide()
 
         # 3. Motivation
+        logger.info("Adding motivation slide...")
         self._add_motivation_slide()
 
         # 4. Main Idea & Framework
+        logger.info("Adding main idea slide...")
         self._add_main_idea_slide()
 
         # 5. Methodology (can span multiple slides)
+        logger.info("Adding methodology slides...")
         self._add_methodology_slides()
 
         # 6. Experiments & Results (can span multiple slides)
+        logger.info("Adding experiments slides...")
         self._add_experiments_slides()
 
         # 7. Conclusion & Future Work
+        logger.info("Adding conclusion slide...")
         self._add_conclusion_slide()
 
+        logger.info(f"PowerPoint generation complete. Total slides: {len(self.prs.slides)}")
         return self.prs
 
     def _add_cover_slide(self):
@@ -204,24 +226,28 @@ class PowerPointGenerator:
 
     def _add_introduction_slide(self):
         """Add Introduction and Related Work slide."""
-        slide, content_frame = self._add_title_slide("Introduction & Related Work")
-
         introduction = self.analysis_data.get('introduction', self.analysis_data.get('abstract', ''))
-        if introduction:
+        logger.info(f"Introduction content length: {len(introduction) if introduction else 0}")
+
+        if introduction and introduction.strip():
+            slide, content_frame = self._add_title_slide("Introduction & Related Work")
             self._add_content_to_frame(content_frame, introduction, max_slides=2)
+        else:
+            logger.warning("Introduction is empty, skipping slide")
 
     def _add_motivation_slide(self):
         """Add Motivation slide."""
-        slide, content_frame = self._add_title_slide("Motivation")
-
         motivation = self.analysis_data.get('motivation', '')
-        if motivation:
+        logger.info(f"Motivation content length: {len(motivation) if motivation else 0}")
+
+        if motivation and motivation.strip():
+            slide, content_frame = self._add_title_slide("Motivation")
             self._add_content_to_frame(content_frame, motivation, max_slides=2)
+        else:
+            logger.warning("Motivation is empty, skipping slide")
 
     def _add_main_idea_slide(self):
         """Add Main Idea & Framework slide."""
-        slide, content_frame = self._add_title_slide("Main Idea & Framework")
-
         # Combine contribution and methodology overview
         content = ""
         if self.analysis_data.get('contribution'):
@@ -233,33 +259,40 @@ class PowerPointGenerator:
             first_para = methodology.split('\n\n')[0] if '\n\n' in methodology else methodology[:300]
             content += "### Framework Overview\n\n" + first_para
 
-        if content:
+        logger.info(f"Main idea content length: {len(content)}")
+
+        if content and content.strip():
+            slide, content_frame = self._add_title_slide("Main Idea & Framework")
             self._add_content_to_frame(content_frame, content, max_slides=2)
+        else:
+            logger.warning("Main idea content is empty, skipping slide")
 
     def _add_methodology_slides(self):
         """Add Methodology slides (can be multiple)."""
         methodology = self.analysis_data.get('how_does_paper_do', '')
-        if not methodology:
-            return
+        logger.info(f"Methodology content length: {len(methodology) if methodology else 0}")
 
-        # First slide with title
-        slide, content_frame = self._add_title_slide("Methodology")
-        self._add_content_to_frame(content_frame, methodology, max_slides=4)
+        if methodology and methodology.strip():
+            # First slide with title
+            slide, content_frame = self._add_title_slide("Methodology")
+            self._add_content_to_frame(content_frame, methodology, max_slides=4)
+        else:
+            logger.warning("Methodology is empty, skipping slide")
 
     def _add_experiments_slides(self):
         """Add Experiments & Results slides (can be multiple)."""
         experiments = self.analysis_data.get('what_does_paper_do', '')
-        if not experiments:
-            return
+        logger.info(f"Experiments content length: {len(experiments) if experiments else 0}")
 
-        # First slide with title
-        slide, content_frame = self._add_title_slide("Experiments & Results")
-        self._add_content_to_frame(content_frame, experiments, max_slides=4)
+        if experiments and experiments.strip():
+            # First slide with title
+            slide, content_frame = self._add_title_slide("Experiments & Results")
+            self._add_content_to_frame(content_frame, experiments, max_slides=4)
+        else:
+            logger.warning("Experiments is empty, skipping slide")
 
     def _add_conclusion_slide(self):
         """Add Conclusion and Future Work slide."""
-        slide, content_frame = self._add_title_slide("Conclusion & Future Work")
-
         content = ""
         if self.analysis_data.get('conclusion'):
             content += "### Conclusion\n\n" + self.analysis_data['conclusion'] + "\n\n"
@@ -267,8 +300,13 @@ class PowerPointGenerator:
         if self.analysis_data.get('future_work'):
             content += "### Future Work\n\n" + self.analysis_data['future_work']
 
-        if content:
+        logger.info(f"Conclusion content length: {len(content)}")
+
+        if content and content.strip():
+            slide, content_frame = self._add_title_slide("Conclusion & Future Work")
             self._add_content_to_frame(content_frame, content, max_slides=2)
+        else:
+            logger.warning("Conclusion content is empty, skipping slide")
 
     def _add_content_to_frame(self, text_frame, content: str, max_slides: int = 2):
         """
@@ -317,8 +355,14 @@ class PowerPointGenerator:
             text_frame: PowerPoint text frame
             content: Markdown-formatted string
         """
+        if not content:
+            logger.warning("_add_formatted_text called with empty content")
+            return
+
+        logger.debug(f"Adding formatted text, content length: {len(content)}")
         lines = content.split('\n')
         current_paragraph = None
+        paragraphs_added = 0
 
         for i, line in enumerate(lines):
             stripped = line.strip()
@@ -330,6 +374,7 @@ class PowerPointGenerator:
                     p.text = ""
                     p.space_after = Pt(6)
                     current_paragraph = p
+                    paragraphs_added += 1
                 continue
 
             # Header (###)
@@ -343,6 +388,8 @@ class PowerPointGenerator:
                 p.space_before = Pt(12)
                 p.space_after = Pt(6)
                 current_paragraph = p
+                paragraphs_added += 1
+                logger.debug(f"Added header: {header_text[:50]}...")
                 continue
 
             # Bullet point
@@ -359,6 +406,8 @@ class PowerPointGenerator:
                 p.space_before = Pt(4)
                 p.space_after = Pt(4)
                 current_paragraph = p
+                paragraphs_added += 1
+                logger.debug(f"Added bullet: {bullet_text[:50]}...")
                 continue
 
             # Numbered list
@@ -376,13 +425,15 @@ class PowerPointGenerator:
                 p.space_before = Pt(4)
                 p.space_after = Pt(4)
                 current_paragraph = p
+                paragraphs_added += 1
+                logger.debug(f"Added numbered item: {num_text[:50]}...")
                 continue
 
             # Regular paragraph
             para_text = self._parse_inline_formatting(stripped)
 
             # If it's a continuation of previous content, append to last paragraph
-            if current_paragraph and not stripped[0].isupper():
+            if current_paragraph and len(stripped) > 0 and not stripped[0].isupper():
                 current_paragraph.text += " " + para_text
             else:
                 p = text_frame.add_paragraph()
@@ -393,6 +444,10 @@ class PowerPointGenerator:
                 p.space_after = Pt(6)
                 p.alignment = PP_ALIGN.JUSTIFY
                 current_paragraph = p
+                paragraphs_added += 1
+                logger.debug(f"Added paragraph: {para_text[:50]}...")
+
+        logger.info(f"Added {paragraphs_added} paragraphs to text frame")
 
     def _parse_inline_formatting(self, text: str) -> str:
         """
@@ -445,9 +500,60 @@ def generate_powerpoint(analysis_data: Dict[str, Any], metadata: Dict[str, Any])
 
     Returns:
         BytesIO: Buffer containing the .pptx file
+
+    Raises:
+        ValueError: If analysis_data is empty or invalid
+        Exception: If PowerPoint generation fails
     """
-    generator = PowerPointGenerator(analysis_data, metadata)
-    return generator.save_to_bytes()
+    logger.info("=" * 80)
+    logger.info("Starting PowerPoint generation process")
+    logger.info(f"Analysis data keys: {list(analysis_data.keys())}")
+    logger.info(f"Metadata keys: {list(metadata.keys())}")
+
+    # Validate analysis data
+    if not analysis_data:
+        raise ValueError("Analysis data is empty")
+
+    # Check if we have at least some content
+    content_fields = ['introduction', 'motivation', 'contribution', 'how_does_paper_do',
+                     'what_does_paper_do', 'conclusion', 'future_work']
+    has_content = any(analysis_data.get(field) for field in content_fields)
+
+    if not has_content:
+        logger.error("No content found in analysis data!")
+        for field in content_fields:
+            value = analysis_data.get(field)
+            logger.error(f"  {field}: {repr(value)[:100]}")
+        raise ValueError("Analysis data contains no content for slides")
+
+    # Validate metadata
+    if not metadata.get('title'):
+        logger.warning("No title in metadata, using default")
+        metadata['title'] = 'Untitled Presentation'
+
+    if not metadata.get('student_name'):
+        metadata['student_name'] = 'Your Name'
+
+    if not metadata.get('student_id'):
+        metadata['student_id'] = 'Student ID'
+
+    try:
+        generator = PowerPointGenerator(analysis_data, metadata)
+        presentation = generator.generate()
+        buffer = generator.save_to_bytes()
+
+        # Verify the buffer has content
+        buffer_size = len(buffer.getvalue())
+        logger.info(f"PowerPoint generated successfully. Size: {buffer_size} bytes")
+
+        if buffer_size < 1000:
+            logger.warning(f"Generated PPT is suspiciously small ({buffer_size} bytes)")
+
+        return buffer
+
+    except Exception as e:
+        logger.error(f"Error generating PowerPoint: {str(e)}", exc_info=True)
+        raise Exception(f"PowerPoint generation failed: {str(e)}")
 
 
 def extract_metadata_from_paper(paper_text: str, filename: str = "") -> Dict[str, str]:

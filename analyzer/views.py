@@ -77,6 +77,9 @@ def analyze_pdf(request):
         # Analyze the paper
         analysis_result = analyze_paper(pdf_file)
 
+        # Reset file pointer after reading (important for database save)
+        pdf_file.seek(0)
+
         # Save to database
         paper_analysis = PaperAnalysis.objects.create(
             user=request.user,
@@ -180,6 +183,90 @@ def analysis_detail(request, analysis_id):
     }
 
     return render(request, 'analysis_detail.html', context)
+
+
+@login_required(login_url='/login/')
+def ppt_history(request):
+    """
+    Display user's PPT generation history.
+    """
+    ppt_generations = PPTGeneration.objects.filter(user=request.user)
+
+    # Search functionality
+    search_query = request.GET.get('search', '')
+    if search_query:
+        ppt_generations = ppt_generations.filter(
+            models.Q(title__icontains=search_query) |
+            models.Q(original_filename__icontains=search_query) |
+            models.Q(abstract__icontains=search_query) |
+            models.Q(student_name__icontains=search_query)
+        )
+
+    # Pagination
+    paginator = Paginator(ppt_generations, 12)  # 12 items per page
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        'page_obj': page_obj,
+        'search_query': search_query,
+        'total_count': ppt_generations.count()
+    }
+
+    return render(request, 'ppt_history.html', context)
+
+
+@login_required(login_url='/login/')
+def ppt_detail(request, ppt_id):
+    """
+    View a specific PPT generation.
+    """
+    ppt = get_object_or_404(PPTGeneration, id=ppt_id, user=request.user)
+
+    # Build analysis result dict from model fields
+    analysis_result = {
+        'abstract': ppt.abstract,
+        'introduction': ppt.introduction,
+        'motivation': ppt.motivation,
+        'contribution': ppt.contribution,
+        'what_does_paper_do': ppt.what_does_paper_do,
+        'how_does_paper_do': ppt.how_does_paper_do,
+        'future_work': ppt.future_work,
+        'conclusion': ppt.conclusion,
+    }
+
+    context = {
+        'ppt': ppt,
+        'analysis_result': analysis_result,
+    }
+
+    return render(request, 'ppt_detail.html', context)
+
+
+@login_required(login_url='/login/')
+@require_POST
+def delete_ppt(request, ppt_id):
+    """
+    Delete a specific PPT generation.
+    """
+    ppt = get_object_or_404(PPTGeneration, id=ppt_id, user=request.user)
+
+    try:
+        # Delete the file and record
+        if ppt.pdf_file:
+            ppt.pdf_file.delete(save=False)
+        ppt.delete()
+
+        return JsonResponse({
+            'success': True,
+            'message': 'PPT generation deleted successfully'
+        })
+    except Exception as e:
+        logger.error(f"Error deleting PPT generation: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
 
 
 @login_required(login_url='/login/')
@@ -714,11 +801,18 @@ def generate_ppt_from_upload(request):
 
     try:
         # Analyze the paper using PPT-optimized prompt
+        logger.info(f"Analyzing paper for PPT generation: {pdf_file.name}")
         analysis_result = analyze_paper_for_ppt(pdf_file, student_name, student_id)
+
+        logger.info(f"Analysis result keys: {list(analysis_result.keys())}")
 
         # Extract metadata from paper text
         from .services import extract_text_from_pdf
         paper_text = extract_text_from_pdf(pdf_file)
+
+        # Reset file pointer after reading (important for database save)
+        pdf_file.seek(0)
+
         paper_metadata = extract_metadata_from_paper(paper_text, pdf_file.name)
 
         # Enhance metadata with LLM-extracted data if available
@@ -736,6 +830,8 @@ def generate_ppt_from_upload(request):
         # Add student info
         paper_metadata['student_name'] = student_name
         paper_metadata['student_id'] = student_id
+
+        logger.info(f"Final metadata: title={paper_metadata.get('title')}, student={student_name}")
 
         # Optionally save to database (if requested)
         save_to_db = request.POST.get('save_to_db', 'false').lower() == 'true'
@@ -763,8 +859,10 @@ def generate_ppt_from_upload(request):
                 analysis_data=analysis_result
             )
             ppt_id = ppt_generation.id
+            logger.info(f"Saved PPT generation to DB with ID: {ppt_id}")
 
         # Generate PowerPoint
+        logger.info("Generating PowerPoint...")
         ppt_buffer = generate_powerpoint(analysis_result, paper_metadata)
 
         # Create filename
@@ -782,12 +880,21 @@ def generate_ppt_from_upload(request):
         if ppt_id:
             response['X-PPT-ID'] = str(ppt_id)
 
+        logger.info(f"PPT generated successfully: {filename}, size={len(ppt_buffer.getvalue())} bytes")
         return response
 
-    except Exception as e:
-        logger.error(f"Error generating PPT from upload: {str(e)}")
+    except ValueError as e:
+        # Validation error
+        logger.error(f"Validation error generating PPT: {str(e)}")
         return JsonResponse({
             'success': False,
             'error': str(e)
+        }, status=400)
+    except Exception as e:
+        # Unexpected error
+        logger.error(f"Error generating PPT from upload: {str(e)}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': f"Failed to generate presentation: {str(e)}"
         }, status=500)
 
