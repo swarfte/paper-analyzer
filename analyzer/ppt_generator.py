@@ -535,6 +535,7 @@ class PowerPointGenerator:
     def _add_formatted_text(self, text_frame, content: str):
         """
         Parse and add markdown-formatted content to a text frame.
+        Optimized for presentation readability with short, concise bullet points.
 
         Args:
             text_frame: PowerPoint text frame
@@ -548,8 +549,10 @@ class PowerPointGenerator:
         lines = content.split('\n')
         current_paragraph = None
         paragraphs_added = 0
+        max_bullets_per_slide = 6  # Limit bullets for better readability
+        bullet_count = 0
 
-        for i, line in enumerate(lines):
+        for line in lines:
             stripped = line.strip()
 
             # Empty line - add spacing
@@ -557,7 +560,7 @@ class PowerPointGenerator:
                 if current_paragraph is not None:
                     p = text_frame.add_paragraph()
                     p.text = ""
-                    p.space_after = Pt(6)
+                    p.space_after = Pt(8)
                     current_paragraph = p
                     paragraphs_added += 1
                 continue
@@ -567,55 +570,79 @@ class PowerPointGenerator:
                 header_text = stripped[3:].strip()
                 p = text_frame.add_paragraph()
                 p.text = header_text
-                p.font.size = Pt(20)
+                p.font.size = Pt(22)
                 p.font.bold = True
                 p.font.color.rgb = self.PRIMARY_COLOR
-                p.space_before = Pt(12)
-                p.space_after = Pt(6)
+                p.space_before = Pt(16)
+                p.space_after = Pt(10)
                 current_paragraph = p
                 paragraphs_added += 1
+                bullet_count = 0  # Reset bullet count after header
                 logger.debug(f"Added header: {header_text[:50]}...")
                 continue
 
             # Bullet point
             if stripped.startswith('- ') or stripped.startswith('* '):
+                # Stop if we have too many bullets for readability
+                if bullet_count >= max_bullets_per_slide:
+                    logger.debug(f"Reached max bullets ({max_bullets_per_slide}), stopping")
+                    break
+
                 bullet_text = stripped[2:].strip()
+                # Truncate long bullets for presentation readability
+                if len(bullet_text) > 100:
+                    bullet_text = bullet_text[:97] + "..."
                 # Handle inline formatting
                 bullet_text = self._parse_inline_formatting(bullet_text)
 
                 p = text_frame.add_paragraph()
                 p.text = bullet_text
                 p.level = 0
-                p.font.size = Pt(16)
+                p.font.size = Pt(18)  # Larger font for better readability
                 p.font.color.rgb = self.TEXT_COLOR
-                p.space_before = Pt(4)
-                p.space_after = Pt(4)
+                p.space_before = Pt(8)
+                p.space_after = Pt(8)
+                p.line_spacing = 1.3  # Add line spacing for readability
                 current_paragraph = p
                 paragraphs_added += 1
+                bullet_count += 1
                 logger.debug(f"Added bullet: {bullet_text[:50]}...")
                 continue
 
             # Numbered list
             numbered_match = re.match(r'^(\d+)\.\s+(.*)$', stripped)
             if numbered_match:
+                # Stop if we have too many bullets for readability
+                if bullet_count >= max_bullets_per_slide:
+                    logger.debug(f"Reached max bullets ({max_bullets_per_slide}), stopping")
+                    break
+
                 num_text = numbered_match.group(2)
+                # Truncate long numbered items for presentation readability
+                if len(num_text) > 100:
+                    num_text = num_text[:97] + "..."
                 # Handle inline formatting
                 num_text = self._parse_inline_formatting(num_text)
 
                 p = text_frame.add_paragraph()
                 p.text = num_text
                 p.level = 0
-                p.font.size = Pt(16)
+                p.font.size = Pt(18)  # Larger font for better readability
                 p.font.color.rgb = self.TEXT_COLOR
-                p.space_before = Pt(4)
-                p.space_after = Pt(4)
+                p.space_before = Pt(8)
+                p.space_after = Pt(8)
+                p.line_spacing = 1.3  # Add line spacing for readability
                 current_paragraph = p
                 paragraphs_added += 1
+                bullet_count += 1
                 logger.debug(f"Added numbered item: {num_text[:50]}...")
                 continue
 
-            # Regular paragraph
+            # Regular paragraph - truncate for presentation
             para_text = self._parse_inline_formatting(stripped)
+            # Truncate long paragraphs for presentation readability
+            if len(para_text) > 150:
+                para_text = para_text[:147] + "..."
 
             # If it's a continuation of previous content, append to last paragraph
             if current_paragraph and len(stripped) > 0 and not stripped[0].isupper():
@@ -623,13 +650,15 @@ class PowerPointGenerator:
             else:
                 p = text_frame.add_paragraph()
                 p.text = para_text
-                p.font.size = Pt(16)
+                p.font.size = Pt(18)  # Larger font for better readability
                 p.font.color.rgb = self.TEXT_COLOR
-                p.space_before = Pt(6)
-                p.space_after = Pt(6)
-                p.alignment = PP_ALIGN.JUSTIFY
+                p.space_before = Pt(8)
+                p.space_after = Pt(8)
+                p.line_spacing = 1.4  # Add line spacing for readability
+                p.alignment = PP_ALIGN.LEFT  # Left align is better for presentations
                 current_paragraph = p
                 paragraphs_added += 1
+                bullet_count += 1
                 logger.debug(f"Added paragraph: {para_text[:50]}...")
 
         logger.info(f"Added {paragraphs_added} paragraphs to text frame")

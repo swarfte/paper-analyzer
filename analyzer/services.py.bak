@@ -305,12 +305,12 @@ Example format (SHORT & READABLE):
 ```
 
 ### 3. LITERATURE REVIEW (for Slide 3)
-Provide CONCISE related work:
-- List 4-5 (MAX 6) key prior approaches with details:
-  - Method + idea + limitation
-  - Each under 15 words
-  - Keep short (1 sentence each)
-- Organize chronologically
+Provide COMPREHENSIVE related work:
+- List 5-7 key prior approaches with details:
+  - Method name and authors
+  - Key idea or contribution
+  - Main limitation (1 sentence each)
+- Organize chronologically or thematically
 - Show progression of research in the field
 
 ### 4. PROBLEM STATEMENT / MOTIVATION (for Slide 4)
